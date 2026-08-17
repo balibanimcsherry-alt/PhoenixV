@@ -3,7 +3,8 @@ import Header from './Header';
 import BookingBar from './BookingBar';
 import ChatWidget from './ChatWidget';
 import WeatherWidget from './WeatherWidget';
-import { amenities, gallery, reviews } from './content';
+import PhotoGallery from './PhotoGallery';
+import { amenities, reviews } from './content';
 
 export default function Home(){
   return <div><Header/>
@@ -26,7 +27,10 @@ export default function Home(){
         <div className="amenities-list">{amenities.map(x=><span key={x}>✓ {x}</span>)}</div>
       </section>
 
-      <section id="gallery" className="section"><div className="section-head"><div><div className="eyebrow dark">TAKE A LOOK AROUND</div><h2>Bright, relaxed and unmistakably coastal.</h2></div></div><div className="gallery-grid">{gallery.map(([src,alt],i)=><figure key={src} className={i===0?'wide':''}><img src={src} alt={alt}/><figcaption>{alt}</figcaption></figure>)}</div></section>
+      <section id="gallery" className="section gallery-section">
+        <div className="section-head"><div><div className="eyebrow dark">TAKE A LOOK AROUND</div><h2>55 photos. Every room, every view.</h2></div><p>Tap any photo to open full screen. Click again to zoom.</p></div>
+        <PhotoGallery/>
+      </section>
 
       <section className="section book-direct"><div><div className="eyebrow">BOOK DIRECT</div><h2>More beach. Less booking fee.</h2><p>Direct website rates are designed to be about 10% below comparable Airbnb pricing when enabled by the owner. Exact totals, taxes and fees are shown before checkout.</p></div><a className="btn light" href="/book">See your dates</a></section>
 
