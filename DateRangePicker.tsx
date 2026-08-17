@@ -93,7 +93,7 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
   const picker = (
     <DayPicker
       mode="range"
-      selected={selected}
+      selected={selected as any}
       onSelect={handleSelect as any}
       month={month}
       onMonthChange={setMonth}

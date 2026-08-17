@@ -197,7 +197,7 @@ export default function Admin() {
               <SectionCard title="Devices">
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
-                    <Pie data={analytics.devices} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                    <Pie data={analytics.devices} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }: { name?: string; percent?: number }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                       {analytics.devices.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip />
@@ -208,7 +208,7 @@ export default function Admin() {
               <SectionCard title="Browsers">
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
-                    <Pie data={analytics.browsers} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                    <Pie data={analytics.browsers} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }: { name?: string; percent?: number }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                       {analytics.browsers.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip />
@@ -219,7 +219,7 @@ export default function Admin() {
               <SectionCard title="Operating Systems">
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
-                    <Pie data={analytics.os} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                    <Pie data={analytics.os} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }: { name?: string; percent?: number }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                       {analytics.os.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip />

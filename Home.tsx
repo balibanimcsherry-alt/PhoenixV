@@ -2,6 +2,7 @@ import { Waves, BedDouble, Bath, Users, MapPin, Heart, ShieldCheck, Star, Utensi
 import Header from './Header';
 import BookingBar from './BookingBar';
 import ChatWidget from './ChatWidget';
+import WeatherWidget from './WeatherWidget';
 import { amenities, gallery, reviews } from './content';
 
 export default function Home(){
@@ -13,6 +14,8 @@ export default function Home(){
         <div className="hero-copy"><div className="eyebrow">PHOENIX V • ORANGE BEACH, ALABAMA</div><h1>Your family’s Gulf-front escape.</h1><p>Wake up above the sugar-white sand in a relaxed 14th-floor coastal condo made for reconnecting, unwinding and making beach memories.</p><div className="hero-pills"><span><BedDouble/>3 bedrooms</span><span><Bath/>2 baths</span><span><Users/>Up to 10 guests</span><span><Waves/>Oceanfront</span></div></div>
 <BookingBar/>
       </section>
+
+      <WeatherWidget/>
 
       <section className="trust-strip"><div><Star/>Guest favorite</div><div><ShieldCheck/>Professionally cleaned</div><div><Heart/>Family focused</div><div><MapPin/>Direct beach access</div></section>
 
@@ -52,6 +55,18 @@ export default function Home(){
         ['How old do I need to be to book?','The primary renter must be at least 25.'],
         ['Is the condo directly on the beach?','Yes. Phoenix V has direct beach access, and Coastal Haven has an unobstructed Gulf-facing balcony.']
       ].map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</section>
+      <section className="section map-section">
+        <div className="section-head"><div><div className="eyebrow dark">FIND US</div><h2>Phoenix V, Orange Beach.</h2></div><p>26802 Perdido Beach Blvd, Unit 1506 · Orange Beach, AL 36561. Right on the Gulf with direct beach access.</p></div>
+        <div className="map-wrap">
+          <iframe
+            title="Phoenix V location"
+            src="https://maps.google.com/maps?q=26802+Perdido+Beach+Blvd+Orange+Beach+AL+36561&t=k&z=15&output=embed"
+            className="map-iframe"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+      </section>
     </main>
     <footer><img src="/logo.svg"/><p>Coastal Haven • Phoenix V • Orange Beach, Alabama</p><p><a href="mailto:stay@orangebeachstay.com">stay@orangebeachstay.com</a></p><small>© {new Date().getFullYear()} Coastal Haven. Exact address and unit details are provided after confirmed booking.</small></footer>
     <BookingBar floating/><ChatWidget/>
