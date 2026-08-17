@@ -9,15 +9,15 @@ from pydantic import BaseModel
 import stripe
 import httpx
 import asyncio
-from .config import settings
-from .db import Base, engine, get_db
-from .models import AppSettings, ChatMessage, BookingRequest, Customer
-from .schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
+from config import settings
+from db import Base, engine, get_db
+from models import AppSettings, ChatMessage, BookingRequest, Customer
+from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
-from .integrations import airbnb_available, pricelabs_nightly_rate
-from . import analytics as _analytics
-from .email_service import send_booking_confirmation, send_owner_notification
+from integrations import airbnb_available, pricelabs_nightly_rate
+import analytics as _analytics
+from email_service import send_booking_confirmation, send_owner_notification
 Base.metadata.create_all(bind=engine)
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
@@ -491,3 +491,16 @@ async def ai_chat(payload:AIChatIn):
         return {'reply':resp.choices[0].message.content}
     except Exception as e:
         return {'reply':'Sorry, I\'m having trouble right now. Please use the contact form and we\'ll reply shortly!'}
+
+# Serve React SPA in production (after npm run build creates dist/)
+from pathlib import Path as _Path
+from fastapi.staticfiles import StaticFiles as _StaticFiles
+from fastapi.responses import FileResponse as _FileResponse
+
+_dist = _Path(__file__).parent / 'dist'
+if _dist.exists():
+    app.mount('/assets', _StaticFiles(directory=str(_dist / 'assets')), name='assets')
+
+    @app.get('/{full_path:path}')
+    async def _spa(full_path: str):
+        return _FileResponse(str(_dist / 'index.html'))

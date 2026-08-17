@@ -4,7 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
 
-from .config import settings
+from config import settings
 
 log = logging.getLogger(__name__)
 

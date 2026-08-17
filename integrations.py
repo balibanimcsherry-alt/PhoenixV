@@ -1,7 +1,7 @@
 from datetime import date, datetime
 import re
 import httpx
-from .config import settings
+from config import settings
 
 
 def _parse_ical_date(val: str) -> date:
