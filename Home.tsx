@@ -56,11 +56,11 @@ export default function Home(){
         ['Is the condo directly on the beach?','Yes. Phoenix V has direct beach access, and Coastal Haven has an unobstructed Gulf-facing balcony.']
       ].map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</section>
       <section className="section map-section">
-        <div className="section-head"><div><div className="eyebrow dark">FIND US</div><h2>Phoenix V, Orange Beach.</h2></div><p>26802 Perdido Beach Blvd, Unit 1506 · Orange Beach, AL 36561. Right on the Gulf with direct beach access.</p></div>
+        <div className="section-head"><div><div className="eyebrow dark">FIND US</div><h2>Phoenix V, Orange Beach.</h2></div><p>24400 Perdido Beach Blvd · Orange Beach, AL 36561. Right on the Gulf with direct beach access.</p></div>
         <div className="map-wrap">
           <iframe
             title="Phoenix V location"
-            src="https://maps.google.com/maps?q=26802+Perdido+Beach+Blvd+Orange+Beach+AL+36561&t=k&z=15&output=embed"
+            src="https://maps.google.com/maps?q=24400+Perdido+Beach+Blvd+Orange+Beach+AL+36561&t=k&z=15&output=embed"
             className="map-iframe"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"

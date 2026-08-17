@@ -80,7 +80,7 @@ function ConfirmationPage({ bookingId }: { bookingId: string }) {
             <div className="conf-property">
               <div className="conf-label">Property</div>
               <div className="conf-value">Coastal Haven at Phoenix V</div>
-              <div className="conf-note">26802 Perdido Beach Blvd, Unit 1506, Orange Beach, AL 36561</div>
+              <div className="conf-note">24400 Perdido Beach Blvd, Orange Beach, AL 36561</div>
             </div>
             <div className="conf-divider" />
             <div className="conf-checkin-info">

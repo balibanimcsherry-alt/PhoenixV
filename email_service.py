@@ -152,7 +152,7 @@ def send_booking_confirmation(booking: dict) -> bool:
       </div>
       <div class="detail-row">
         <span class="label">Address</span>
-        <span class="value">Unit 1506, 26802 Perdido Beach Blvd<br>Orange Beach, AL 36561</span>
+        <span class="value">24400 Perdido Beach Blvd<br>Orange Beach, AL 36561</span>
       </div>
       <div class="detail-row">
         <span class="label">Nights</span>
@@ -203,7 +203,7 @@ def send_booking_confirmation(booking: dict) -> bool:
 
   <div class="footer">
     <strong>Coastal Haven at Phoenix V</strong><br>
-    26802 Perdido Beach Blvd, Unit 1506 · Orange Beach, AL 36561<br>
+    24400 Perdido Beach Blvd · Orange Beach, AL 36561<br>
     <a href="mailto:voiceorchatbot@gmail.com">voiceorchatbot@gmail.com</a>
     <br><br>
     <span style="font-size:11px">You're receiving this because you made a booking on our website. This is a transactional email.</span>
@@ -227,7 +227,7 @@ Nights:    {nights}
 Guests:    {guests}
 Total:     {total}
 
-Property: Unit 1506, 26802 Perdido Beach Blvd, Orange Beach, AL 36561
+Property: 24400 Perdido Beach Blvd, Orange Beach, AL 36561
 
 BEFORE YOU ARRIVE:
 - Door code and check-in instructions sent 48 hrs before arrival
