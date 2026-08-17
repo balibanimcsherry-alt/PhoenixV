@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 72">
+  <rect width="240" height="72" rx="18" fill="#fffaf0"/>
+  <circle cx="34" cy="28" r="11" fill="#f2b45f"/>
+  <path d="M11 43c16-14 30-14 46 0 15 13 31 12 47-1" fill="none" stroke="#0d5f6b" stroke-width="5" stroke-linecap="round"/>
+  <path d="M11 53c17-11 31-11 46 0" fill="none" stroke="#6baeb6" stroke-width="4" stroke-linecap="round"/>
+  <text x="75" y="31" font-family="Georgia,serif" font-size="19" fill="#174b50" font-weight="700">Coastal Haven</text>
+  <text x="75" y="51" font-family="Arial,sans-serif" font-size="10" letter-spacing="2" fill="#7b684d">ORANGE BEACH • ALABAMA</text>
+</svg>

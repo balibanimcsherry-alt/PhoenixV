@@ -1,0 +1,9 @@
+{
+  "name": "Coastal Haven - Orange Beach Stay",
+  "short_name": "Coastal Haven",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f2e9",
+  "theme_color": "#0d5f6b",
+  "icons": []
+}

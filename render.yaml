@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: coastal-haven-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coastal-haven-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+  - type: web
+    name: coastal-haven-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://coastal-haven-api.onrender.com
+databases:
+  - name: coastal-haven-db
+    plan: free
