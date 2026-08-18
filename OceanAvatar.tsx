@@ -90,18 +90,33 @@ export default function OceanAvatar() {
     if (!canSpeak || mutedRef.current) return;
     window.speechSynthesis.cancel();
     if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
-    const utt = new SpeechSynthesisUtterance(text);
+
+    // Strip emojis, markdown symbols, and URLs so TTS doesn't read them literally
+    const clean = text
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
+      .replace(/[*_~`#]/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/^[-•]\s*/gm, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    const utt = new SpeechSynthesisUtterance(clean);
     const vlist = window.speechSynthesis.getVoices();
-    const pick = vlist.find(v => v.lang.startsWith('en') && /samantha|victoria|karen|moira|tessa|zira|fiona/i.test(v.name))
-      ?? vlist.find(v => v.lang.startsWith('en-US'))
-      ?? vlist.find(v => v.lang.startsWith('en'))
-      ?? vlist[0];
+    // Priority: Microsoft neural voices (Edge/Windows) → quality macOS voices → any en-US
+    const pick =
+      vlist.find(v => v.lang.startsWith('en') && /aria|jenny|sonia|natasha|libby|emma/i.test(v.name)) ??
+      vlist.find(v => v.lang.startsWith('en') && /samantha|karen|victoria|moira|tessa/i.test(v.name)) ??
+      vlist.find(v => v.lang.startsWith('en-US') && v.localService) ??
+      vlist.find(v => v.lang.startsWith('en-US')) ??
+      vlist.find(v => v.lang.startsWith('en')) ??
+      vlist[0];
     if (pick) utt.voice = pick;
-    utt.rate = 0.92; utt.pitch = 1.05;
+    utt.rate = 0.88;  // deliberate, warm pace
+    utt.pitch = 1.0;  // natural — no artificial lift
+    utt.volume = 1.0;
     utt.onstart = () => {
       setSpeaking(true);
-      // Safety: reset speaking state if onend never fires (no-audio environments)
-      speakTimerRef.current = setTimeout(() => setSpeaking(false), Math.max(text.length * 80, 3000));
+      speakTimerRef.current = setTimeout(() => setSpeaking(false), Math.max(clean.length * 80, 3000));
     };
     utt.onend = () => { if (speakTimerRef.current) clearTimeout(speakTimerRef.current); setSpeaking(false); };
     utt.onerror = () => { if (speakTimerRef.current) clearTimeout(speakTimerRef.current); setSpeaking(false); };
