@@ -24,11 +24,6 @@ app=FastAPI(title='Coastal Haven API',version='1.0.0')
 async def _startup():
     try: Base.metadata.create_all(bind=engine)
     except Exception as e: print(f'DB init warning: {e}')
-    print(f'[config] stripe_secret_key set: {bool(settings.stripe_secret_key)}')
-    print(f'[config] stripe_test_secret_key set: {bool(settings.stripe_test_secret_key)}')
-    print(f'[config] stripe_live_secret_key set: {bool(settings.stripe_live_secret_key)}')
-    print(f'[config] stripe_webhook_secret set: {bool(settings.stripe_webhook_secret)}')
-    print(f'[config] stripe_mode: {settings.stripe_mode}')
 app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'https://www.orangebeachstay.com','https://coastal-haven.onrender.com','http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
 
 _SKIP_ANALYTICS={'/docs','/openapi.json','/favicon.ico'}
