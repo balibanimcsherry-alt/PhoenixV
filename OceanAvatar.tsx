@@ -102,31 +102,42 @@ export default function OceanAvatar() {
     if (!clean) return;
 
     setSpeaking(true);
+    let apiAudioLoaded = false;
     try {
       const resp = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: clean }),
       });
-      if (!resp.ok) throw new Error('tts_unavailable');
+      if (!resp.ok) throw new Error('api_error');
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
       audio.onerror = () => { setSpeaking(false); URL.revokeObjectURL(url); };
-      await audio.play();
+      apiAudioLoaded = true;
+      try {
+        await audio.play();
+      } catch {
+        // Browser blocked autoplay — stay silent, don't fall back to robotic browser TTS
+        URL.revokeObjectURL(url);
+        setSpeaking(false);
+      }
     } catch {
-      // Fallback to browser TTS if API unavailable
+      if (apiAudioLoaded) return; // already handled above
+      // API completely unavailable — use browser TTS with female-only voice filter
       if ('speechSynthesis' in window) {
         const utt = new SpeechSynthesisUtterance(clean);
         const vlist = window.speechSynthesis.getVoices();
+        // Only pick voices that are known female — never default to a robotic/male voice
         const pick =
-          vlist.find(v => v.lang.startsWith('en') && /aria|jenny|sonia|natasha|nova/i.test(v.name)) ??
-          vlist.find(v => v.lang.startsWith('en') && /samantha|karen|victoria/i.test(v.name)) ??
-          vlist.find(v => v.lang.startsWith('en-US')) ??
-          vlist[0];
-        if (pick) utt.voice = pick;
+          vlist.find(v => /female/i.test(v.name) && v.lang.startsWith('en')) ??
+          vlist.find(v => v.lang.startsWith('en') && /aria|jenny|sonia|shimmer|samantha|karen|victoria|moira|tessa/i.test(v.name)) ??
+          vlist.find(v => v.lang.startsWith('en-US') && !v.localService) ??
+          null;
+        if (!pick) { setSpeaking(false); return; } // no acceptable voice found — stay silent
+        utt.voice = pick;
         utt.rate = 0.88; utt.pitch = 1.0;
         utt.onend = () => setSpeaking(false);
         utt.onerror = () => setSpeaking(false);

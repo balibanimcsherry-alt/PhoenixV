@@ -524,10 +524,10 @@ async def text_to_speech(payload:TTSIn):
         from fastapi.responses import Response as _Resp
         client=AsyncOpenAI(api_key=settings.openai_api_key)
         resp=await client.audio.speech.create(
-            model='tts-1',
-            voice='nova',   # warm, natural, female
+            model='tts-1-hd',  # highest quality — noticeably more natural
+            voice='nova',      # female, warm, conversational
             input=clean,
-            speed=0.95,
+            speed=0.92,
         )
         return _Resp(content=resp.content,media_type='audio/mpeg')
     except Exception as e:
