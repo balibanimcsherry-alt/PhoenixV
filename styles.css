@@ -306,9 +306,9 @@ html[data-theme="stormy-day"] body{background:linear-gradient(180deg,#ececf0 0%,
 .avatar-idle{animation:ocean-bob 2s ease-in-out infinite}
 .avatar-speaking{animation:ocean-bob-speak .52s ease-in-out infinite}
 .av-bubble{position:absolute;border-radius:50%;background:rgba(107,174,182,.72)}
-.av-bubble--1{width:7px;height:7px;left:3px;bottom:52px;animation:ocean-bubble 2.1s ease-out infinite}
-.av-bubble--2{width:6px;height:6px;left:44px;bottom:48px;animation:ocean-bubble 2.1s ease-out .72s infinite}
-.av-bubble--3{width:5px;height:5px;left:24px;bottom:56px;animation:ocean-bubble 2.1s ease-out 1.44s infinite}
+.av-bubble--1{width:7px;height:7px;left:3px;bottom:12px;animation:ocean-bubble 2.1s ease-out infinite}
+.av-bubble--2{width:6px;height:6px;left:44px;bottom:10px;animation:ocean-bubble 2.1s ease-out .72s infinite}
+.av-bubble--3{width:5px;height:5px;left:24px;bottom:16px;animation:ocean-bubble 2.1s ease-out 1.44s infinite}
 .ocean-panel-info{flex:1;min-width:0}
 .ocean-panel-name{font-size:16px;font-weight:700;line-height:1.2}
 .ocean-panel-status{font-size:11px;opacity:.82;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -332,5 +332,5 @@ html[data-theme="stormy-day"] body{background:linear-gradient(180deg,#ececf0 0%,
 .ocean-mic-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:white;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s,color .15s}
 .ocean-mic-btn--on{background:var(--coral);border-color:var(--coral);color:white;animation:ocean-mic-pulse 1s infinite}
 .ocean-send-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--teal);color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:opacity .15s}
-.ocean-send-btn:disabled{opacity:.35;cursor:default}
+.ocean-send-btn:disabled{opacity:.35;cursor:not-allowed}
 @media(max-width:600px){.ocean-panel{right:10px;left:10px;width:auto;bottom:76px;max-height:70vh}.ocean-fab{bottom:16px;right:14px}.ocean-fab-label{display:none}.ocean-fab--open{padding:8px}}

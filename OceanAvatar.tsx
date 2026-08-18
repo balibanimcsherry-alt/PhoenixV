@@ -5,31 +5,6 @@ import { api } from './api';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
-const PAGE_CONTEXTS: Record<string, string> = {
-  '/': 'The guest is on the home page viewing the property overview.',
-  '/book': 'The guest is on the booking page. Help with dates, pricing, and availability.',
-  '/availability': 'The guest is checking availability. Help with dates and pricing.',
-  '/flights': 'The guest is on the flights page. Nearest airports: PNS (Pensacola, 45 min), VPS (Destin, 1 hr), MOB (Mobile, 1 hr).',
-  '/gallery': 'The guest is viewing the photo gallery. Describe the Gulf-front balcony, primary suite, open living room, and full kitchen.',
-  '/amenities': 'The guest is on the amenities page. Highlight the pool, hot tub, gym, beach access, covered parking, full kitchen, washer/dryer.',
-  '/faq': 'The guest is reading the FAQ. Check-in 4 PM, checkout 10 AM, no pets, no parties, parking $55/vehicle, min age 25.',
-  '/reviews': 'The guest is reading reviews — 4.9-star average, praised for views and cleanliness.',
-  '/about': 'The guest is on the about page learning about Coastal Haven and booking direct.',
-  '/contact': 'The guest is on the contact page. Encourage them to reach out.',
-  '/cancellation-policy': 'Full refund >30 days, 50% up to 14 days, non-refundable within 14 days.',
-  '/house-rules': 'No smoking, no pets, no parties, quiet hours 10 PM–8 AM, primary renter must be 25+.',
-  '/orange-beach-condo': '3 bedrooms, 2 bathrooms, 4 beds, sleeps 10, 14th floor, Gulf-front Unit 1408.',
-  '/orange-beach-guide': 'Local guide: LuLu\'s, The Gulf, Cobalt for dining; dolphin cruises, parasailing, Gulf State Park nearby.',
-  '/things-to-do-orange-beach': 'The guest is exploring activities near Unit 1408.',
-  '/orange-beach-restaurants': 'The guest is looking for restaurant picks near Orange Beach.',
-  '/orange-beach-beaches': 'The guest is reading about nearby beaches and beach access.',
-  '/family-activities-orange-beach': 'The guest is looking for family-friendly activities near Unit 1408.',
-};
-
-function getPageCtx(path: string) {
-  return PAGE_CONTEXTS[path] ?? 'The guest is browsing the Coastal Haven Unit 1408 website at Phoenix V.';
-}
-
 // Animated avatar face — SVG-based
 function AvatarFace({ speaking, size = 56 }: { speaking: boolean; size?: number }) {
   return (
@@ -82,6 +57,7 @@ export default function OceanAvatar() {
   const [muted, _setMuted] = useState(false);
   const recRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const canListen = typeof window !== 'undefined' &&
@@ -93,13 +69,27 @@ export default function OceanAvatar() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  // Cancel TTS and mic when panel closes
   useEffect(() => {
-    if (!open && canSpeak) window.speechSynthesis.cancel();
+    if (!open) {
+      if (canSpeak) window.speechSynthesis.cancel();
+      setSpeaking(false);
+      if (recRef.current) { recRef.current.stop(); setListening(false); }
+    }
   }, [open, canSpeak]);
+
+  // Escape key closes panel
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
 
   const speak = (text: string) => {
     if (!canSpeak || mutedRef.current) return;
     window.speechSynthesis.cancel();
+    if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
     const utt = new SpeechSynthesisUtterance(text);
     const vlist = window.speechSynthesis.getVoices();
     const pick = vlist.find(v => v.lang.startsWith('en') && /samantha|victoria|karen|moira|tessa|zira|fiona/i.test(v.name))
@@ -108,9 +98,13 @@ export default function OceanAvatar() {
       ?? vlist[0];
     if (pick) utt.voice = pick;
     utt.rate = 0.92; utt.pitch = 1.05;
-    utt.onstart = () => setSpeaking(true);
-    utt.onend = () => setSpeaking(false);
-    utt.onerror = () => setSpeaking(false);
+    utt.onstart = () => {
+      setSpeaking(true);
+      // Safety: reset speaking state if onend never fires (no-audio environments)
+      speakTimerRef.current = setTimeout(() => setSpeaking(false), Math.max(text.length * 80, 3000));
+    };
+    utt.onend = () => { if (speakTimerRef.current) clearTimeout(speakTimerRef.current); setSpeaking(false); };
+    utt.onerror = () => { if (speakTimerRef.current) clearTimeout(speakTimerRef.current); setSpeaking(false); };
     window.speechSynthesis.speak(utt);
   };
 
@@ -161,6 +155,7 @@ export default function OceanAvatar() {
     <>
       {/* Floating trigger */}
       <button
+        type="button"
         className={`ocean-fab${speaking ? ' ocean-fab--speaking' : ''}${open ? ' ocean-fab--open' : ''}`}
         onClick={() => setOpen(o => !o)}
         aria-label="Chat with Cove"
@@ -195,11 +190,16 @@ export default function OceanAvatar() {
             </div>
             <div className="ocean-panel-actions">
               {canSpeak && (
-                <button className="ocean-icon-btn" onClick={() => { setMuted(!muted); if (!muted && canSpeak) window.speechSynthesis.cancel(); }} title={muted ? 'Unmute' : 'Mute'}>
+                <button
+                  type="button"
+                  className="ocean-icon-btn"
+                  onClick={() => { setMuted(!muted); if (!muted && canSpeak) window.speechSynthesis.cancel(); }}
+                  title={muted ? 'Unmute' : 'Mute'}
+                >
                   {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                 </button>
               )}
-              <button className="ocean-icon-btn" onClick={() => setOpen(false)} title="Close">
+              <button type="button" className="ocean-icon-btn" onClick={() => setOpen(false)} title="Close">
                 <X size={15} />
               </button>
             </div>
@@ -226,7 +226,7 @@ export default function OceanAvatar() {
             {messages.length <= 1 && !loading && (
               <div className="ocean-suggestions">
                 {SUGGESTIONS.map(s => (
-                  <button key={s} className="ocean-pill" onClick={() => send(s)}>{s}</button>
+                  <button type="button" key={s} className="ocean-pill" onClick={() => send(s)}>{s}</button>
                 ))}
               </div>
             )}
@@ -237,6 +237,7 @@ export default function OceanAvatar() {
           <div className="ocean-input-row">
             {canListen && (
               <button
+                type="button"
                 className={`ocean-mic-btn${listening ? ' ocean-mic-btn--on' : ''}`}
                 onClick={toggleMic}
                 title={listening ? 'Stop listening' : 'Speak your question'}
@@ -252,6 +253,7 @@ export default function OceanAvatar() {
               disabled={loading}
             />
             <button
+              type="button"
               className="ocean-send-btn"
               onClick={() => send(input)}
               disabled={!input.trim() || loading}
