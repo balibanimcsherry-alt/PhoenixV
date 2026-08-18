@@ -460,50 +460,74 @@ async def track_event(payload:AnalyticsEventIn,request:Request):
     asyncio.create_task(_analytics.log_event(payload.event,ip,ua,payload.referrer,payload.path,sid,payload.props))
     return {'ok':True}
 
-_PROPERTY_CONTEXT="""You are Cove, the friendly AI concierge for Coastal Haven at Phoenix V — a luxury oceanfront condo in Orange Beach, Alabama.
+_PROPERTY_CONTEXT="""You are Cove, the friendly AI concierge for Coastal Haven — Unit 1408 at Phoenix V, a luxury Gulf-front condo on the 14th floor in Orange Beach, Alabama.
 
 Property facts:
+- Unit: 1408, 14th floor, Phoenix V
 - Address: 24400 Perdido Beach Blvd, Orange Beach, AL 36561
-- 3 bedrooms, 2 bathrooms, sleeps up to 8 guests
-- 15th floor, direct Gulf of Mexico views, private balcony
+- 3 bedrooms, 2 bathrooms, sleeps up to 10 guests
+- Primary suite: king bed, Gulf-front balcony access | 2nd bedroom: 2 queens | 3rd bedroom: twin bunks
+- Direct Gulf of Mexico views, private balcony with unobstructed water view
 - Full kitchen, in-unit washer/dryer, high-speed WiFi
-- Resort amenities: heated pool, hot tub, fitness center, beach access, covered parking
+- Resort amenities: heated pool, hot tub, fitness center, sauna, tennis, beach access, covered parking
 - Check-in: 4:00 PM | Check-out: 10:00 AM
+- Parking: $55/vehicle, max 2 vehicles
 - Cleaning fee: $220 | Taxes: 15%
-- Book direct and save 10% vs Airbnb
+- No smoking, no pets, no parties — primary renter must be 25+
+- Book direct and save ~10% vs Airbnb
 
 Local area:
 - Nearest airport: Pensacola International (PNS) ~45 min drive
+- Also: Destin/Ft Walton (VPS) ~1 hr, Mobile (MOB) ~1 hr
 - Gulf State Park: 2 miles east (bike trails, nature center, pier)
-- Popular restaurants: LuLu's (family), The Gulf (seafood), Cobalt (upscale), Ginny Lane
+- Popular restaurants: LuLu's (family-friendly), The Gulf (seafood), Cobalt (upscale), Ginny Lane
 - Activities: dolphin cruises, deep-sea fishing, parasailing, kayaking, paddleboarding
 - Shopping: The Wharf (entertainment/dining complex), Tanger Outlets
 - Flora-Bama Lounge: 5 miles west, legendary Gulf Coast landmark
 
 Rules:
-- Be warm, concise, and helpful
-- For exact pricing/availability, direct guests to use the booking tool on this page
-- Don't make up specific prices or availability — say "check availability above"
-- Keep replies under 150 words unless a detailed answer is needed"""
+- Be warm, concise, and helpful — like a knowledgeable friend who knows the property
+- Always refer to the unit as "Unit 1408" or "Coastal Haven" — never a generic name
+- For exact pricing/availability, direct guests to use the booking tool on the site
+- Don't make up specific prices or availability — say to check the booking page
+- Keep replies under 150 words unless a detailed answer is genuinely needed"""
+
+_PAGE_CONTEXTS={
+    '/':' The guest is on the home page viewing the property overview.',
+    '/book':' The guest is on the booking page — help with dates, pricing, and availability for Unit 1408.',
+    '/availability':' The guest is checking availability for Unit 1408.',
+    '/flights':' The guest is on the flights page. Nearest airports: PNS (Pensacola, 45 min), VPS (Destin, 1 hr), MOB (Mobile, 1 hr).',
+    '/gallery':' The guest is viewing the photo gallery — describe the Gulf-front balcony, primary suite, open living room, and full kitchen of Unit 1408.',
+    '/amenities':' The guest is on the amenities page — cover pool, hot tub, gym, beach access, parking, full kitchen, washer/dryer, sauna, tennis.',
+    '/faq':' The guest is reading the FAQ — answer questions about check-in (4 PM), checkout (10 AM), pets (not allowed), parking ($55/vehicle), min age (25).',
+    '/reviews':' The guest is reading reviews — highlight the 4.9-star rating and common guest praise about views and cleanliness.',
+    '/about':' The guest is on the about page learning about Coastal Haven and why to book direct vs Airbnb.',
+    '/contact':' The guest is on the contact page — encourage them to reach out via the form.',
+    '/cancellation-policy':' Full refund more than 30 days out, 50% refund up to 14 days, non-refundable within 14 days.',
+    '/house-rules':' No smoking, no pets, no parties, quiet hours 10 PM–8 AM, primary renter must be 25+.',
+}
 
 class AIChatIn(BaseModel):
     messages:list[dict]
+    page:str=''
 
 @app.post('/api/chat/ai')
 async def ai_chat(payload:AIChatIn):
     if not settings.openai_api_key:
-        return {'reply':'Hi! I\'m the Coastal Haven concierge. We\'re getting our AI chat set up — in the meantime please use the contact form below and we\'ll reply quickly!'}
+        return {'reply':"Hi! I'm Cove, your concierge for Unit 1408 at Phoenix V. Our AI chat is finishing setup — use the contact form and we'll reply quickly!"}
+    page_note=_PAGE_CONTEXTS.get(payload.page,'')
+    system=_PROPERTY_CONTEXT+(('\n\nCurrent context:'+page_note) if page_note else '')
     try:
         from openai import AsyncOpenAI
         client=AsyncOpenAI(api_key=settings.openai_api_key)
         resp=await client.chat.completions.create(
             model='gpt-4o-mini',
-            messages=[{'role':'system','content':_PROPERTY_CONTEXT}]+payload.messages[-12:],
+            messages=[{'role':'system','content':system}]+payload.messages[-12:],
             max_tokens=350,temperature=0.7
         )
         return {'reply':resp.choices[0].message.content}
     except Exception as e:
-        return {'reply':'Sorry, I\'m having trouble right now. Please use the contact form and we\'ll reply shortly!'}
+        return {'reply':"Sorry, I'm having a wave of trouble right now. Please use the contact form and we'll reply shortly!"}
 
 # Serve React SPA in production
 from pathlib import Path as _Path

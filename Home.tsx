@@ -2,7 +2,6 @@ import { Waves, BedDouble, Bath, Users, MapPin, Heart, ShieldCheck, Star, Utensi
 import Header from './Header';
 import Footer from './Footer';
 import BookingBar from './BookingBar';
-import ChatWidget from './ChatWidget';
 import WeatherWidget from './WeatherWidget';
 import PhotoGallery from './PhotoGallery';
 import SEOMeta from './SEOMeta';
@@ -75,6 +74,6 @@ export default function Home(){
       </section>
     </main>
     <Footer />
-    <BookingBar floating/><ChatWidget/>
+    <BookingBar floating/>
   </div>
 }

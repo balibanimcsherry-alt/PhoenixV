@@ -280,3 +280,57 @@ html[data-theme="stormy-day"] body{background:linear-gradient(180deg,#ececf0 0%,
 .music-dismiss:hover{color:#fff;background:rgba(255,255,255,.12)}
 @media(max-width:600px){.music-bar{bottom:76px;left:12px}}
 @media(max-width:600px){h2{font-size:34px}.hero-copy h1{font-size:42px}.hero{min-height:760px}.hero-pills span{font-size:11px}.booking-bar:not(.floating){display:none}.booking-bar.floating{display:grid;position:fixed;bottom:0;left:0;right:0;transform:none;width:100%;border-radius:0;grid-template-columns:1fr;z-index:70;padding:10px 14px}.booking-bar.floating label{display:none}.booking-bar.floating .btn{width:100%}.chat-fab{bottom:76px}.chat-panel{bottom:132px;left:12px;right:12px;width:auto}.trust-strip{font-size:12px}.stat-grid{grid-template-columns:1fr 1fr;gap:22px}.amenity-feature-grid,.amenities-list,.gallery-grid{grid-template-columns:1fr}.gallery-grid figure.wide{grid-column:span 1;min-height:320px}.gallery-grid figure{min-height:260px}.guide-tags{grid-template-columns:1fr}.admin-card .two{grid-template-columns:1fr}.footer-inner{grid-template-columns:1fr}.not-found-code{font-size:72px}.blog-grid{grid-template-columns:1fr}.contact-form .two{grid-template-columns:1fr}}
+
+/* ── Ocean Avatar ─────────────────────────────────────────────── */
+@keyframes ocean-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes ocean-bob-speak{0%,100%{transform:translateY(0) scale(1)}30%{transform:translateY(-4px) scale(1.04)}70%{transform:translateY(2px) scale(.97)}}
+@keyframes ocean-ring{0%{transform:scale(1);opacity:.55}100%{transform:scale(2.4);opacity:0}}
+@keyframes ocean-bubble{0%{transform:translateY(0);opacity:.75}100%{transform:translateY(-38px);opacity:0}}
+@keyframes ocean-slide-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ocean-fab-glow{0%,100%{box-shadow:0 6px 28px rgba(13,95,107,.45)}50%{box-shadow:0 6px 36px rgba(13,95,107,.75),0 0 0 6px rgba(107,174,182,.25)}}
+@keyframes ocean-mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(217,136,113,.5)}50%{box-shadow:0 0 0 6px rgba(217,136,113,0)}}
+
+.ocean-fab{position:fixed;z-index:81;right:22px;bottom:22px;display:flex;align-items:center;gap:9px;background:linear-gradient(135deg,#0d5f6b,#174b50);color:white;border:0;border-radius:999px;padding:8px 16px 8px 8px;box-shadow:0 6px 28px rgba(13,95,107,.45);cursor:pointer;transition:transform .22s,box-shadow .22s}
+.ocean-fab:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(13,95,107,.6)}
+.ocean-fab--open{padding:8px;border-radius:50%}
+.ocean-fab--speaking{animation:ocean-fab-glow 1.5s infinite}
+.ocean-fab-ring{position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(107,174,182,.45);pointer-events:none;animation:ocean-ring 2.6s ease-out infinite}
+.ocean-fab-ring--2{animation-delay:.9s}
+.ocean-fab-face{width:44px;height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ocean-fab-label{font-size:13px;font-weight:700;white-space:nowrap;letter-spacing:.02em;padding-right:4px}
+
+.ocean-panel{position:fixed;z-index:80;right:22px;bottom:88px;width:360px;max-height:580px;background:white;border-radius:22px;box-shadow:0 24px 64px rgba(13,52,55,.24);border:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;animation:ocean-slide-up .26s ease}
+.ocean-panel-header{background:linear-gradient(135deg,#0d5f6b 0%,#174b50 100%);color:white;padding:14px 14px 14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.ocean-panel-avatar{width:58px;height:64px;position:relative;flex-shrink:0;display:flex;align-items:flex-end;justify-content:center}
+.ocean-panel-avatar svg{position:relative;z-index:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+.avatar-idle{animation:ocean-bob 2s ease-in-out infinite}
+.avatar-speaking{animation:ocean-bob-speak .52s ease-in-out infinite}
+.av-bubble{position:absolute;border-radius:50%;background:rgba(107,174,182,.72)}
+.av-bubble--1{width:7px;height:7px;left:3px;bottom:52px;animation:ocean-bubble 2.1s ease-out infinite}
+.av-bubble--2{width:6px;height:6px;left:44px;bottom:48px;animation:ocean-bubble 2.1s ease-out .72s infinite}
+.av-bubble--3{width:5px;height:5px;left:24px;bottom:56px;animation:ocean-bubble 2.1s ease-out 1.44s infinite}
+.ocean-panel-info{flex:1;min-width:0}
+.ocean-panel-name{font-size:16px;font-weight:700;line-height:1.2}
+.ocean-panel-status{font-size:11px;opacity:.82;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ocean-panel-actions{display:flex;gap:4px;flex-shrink:0;align-items:center}
+.ocean-icon-btn{background:rgba(255,255,255,.16);border:0;color:white;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s}
+.ocean-icon-btn:hover{background:rgba(255,255,255,.3)}
+
+.ocean-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.ocean-bubble{display:flex;gap:8px;align-items:flex-start}
+.ocean-bubble--user{flex-direction:row-reverse}
+.ocean-bubble-icon{width:26px;height:26px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#e8f4f2;display:flex;align-items:center;justify-content:center}
+.ocean-bubble-text{padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.55;max-width:82%}
+.ocean-bubble--assistant .ocean-bubble-text{background:#f2f8f7;border-radius:14px 14px 14px 4px;color:var(--ink)}
+.ocean-bubble--user .ocean-bubble-text{background:#0d5f6b;color:white;border-radius:14px 14px 4px 14px}
+.ocean-suggestions{display:flex;flex-wrap:wrap;gap:6px;padding-top:4px}
+.ocean-pill{background:#eef6f4;border:1px solid #c8e6e3;color:var(--teal);font-size:12px;font-weight:600;border-radius:999px;padding:5px 12px;cursor:pointer;transition:background .15s}
+.ocean-pill:hover{background:#d8f0ed}
+
+.ocean-input-row{padding:11px;border-top:1px solid var(--line);display:flex;gap:7px;align-items:center;flex-shrink:0}
+.ocean-input-row input{flex:1;border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:13px;font:inherit;min-width:0}
+.ocean-mic-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:white;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background .15s,color .15s}
+.ocean-mic-btn--on{background:var(--coral);border-color:var(--coral);color:white;animation:ocean-mic-pulse 1s infinite}
+.ocean-send-btn{width:34px;height:34px;border-radius:50%;border:0;background:var(--teal);color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:opacity .15s}
+.ocean-send-btn:disabled{opacity:.35;cursor:default}
+@media(max-width:600px){.ocean-panel{right:10px;left:10px;width:auto;bottom:76px;max-height:70vh}.ocean-fab{bottom:16px;right:14px}.ocean-fab-label{display:none}.ocean-fab--open{padding:8px}}

@@ -24,6 +24,7 @@ import Blog from './Blog';
 import BlogPost from './BlogPost';
 import NotFound from './NotFound';
 import BackgroundMusic from './BackgroundMusic';
+import OceanAvatar from './OceanAvatar';
 import { trackPageView } from './analytics';
 
 function RouteTracker() {
@@ -37,6 +38,7 @@ export default function App() {
     <WeatherTheme />
     <RouteTracker />
     <BackgroundMusic />
+    <OceanAvatar />
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/book" element={<Book />} />

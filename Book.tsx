@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import Header from './Header';
-import ChatWidget from './ChatWidget';
 import DateRangePicker from './DateRangePicker';
 import AddressInput from './AddressInput';
 import { api } from './api';
@@ -105,7 +104,6 @@ function ConfirmationPage({ bookingId }: { bookingId: string }) {
         </div>
       )}
     </main>
-    <ChatWidget />
   </>;
 }
 
@@ -264,7 +262,6 @@ export default function Book() {
         <div className="confirmation-actions"><a className="btn" href="/">Back to home</a></div>
       </div>
     </main>
-    <ChatWidget />
   </>;
 
   return <>
@@ -399,6 +396,5 @@ export default function Book() {
         </div>
       </section>
     </main>
-    <ChatWidget />
   </>;
 }
