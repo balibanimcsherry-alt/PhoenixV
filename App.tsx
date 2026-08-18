@@ -30,6 +30,11 @@ import { trackPageView } from './analytics';
 function RouteTracker() {
   const loc = useLocation();
   useEffect(() => { trackPageView(); }, [loc.pathname]);
+  useEffect(() => {
+    if (!loc.hash) return;
+    const el = document.getElementById(loc.hash.slice(1));
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }, [loc.pathname, loc.hash]);
   return null;
 }
 
