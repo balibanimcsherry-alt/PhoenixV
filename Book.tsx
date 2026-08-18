@@ -100,7 +100,7 @@ function ConfirmationPage({ bookingId }: { bookingId: string }) {
           </div>
           <div className="confirmation-actions">
             <a className="btn" href="/">Back to home</a>
-            <a className="btn light" href={`mailto:voiceorchatbot@gmail.com?subject=Booking%20%23CHV-${String(booking.id).padStart(4,'0')}`}>Contact host</a>
+            <a className="btn light" href="/contact">Contact host</a>
           </div>
         </div>
       )}

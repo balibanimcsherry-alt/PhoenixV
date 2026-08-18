@@ -5,7 +5,7 @@ export default function Footer() {
         <div className="footer-brand">
           <img src="/logo.svg" alt="Coastal Haven" />
           <p>A Gulf-front family condo at Phoenix V in Orange Beach, Alabama. Book direct with the owner.</p>
-          <a href="mailto:stay@orangebeachstay.com" className="footer-email">stay@orangebeachstay.com</a>
+          <a href="/contact" className="footer-email">Send a message</a>
         </div>
 
         <div className="footer-col">

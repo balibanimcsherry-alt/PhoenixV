@@ -42,7 +42,7 @@ export default function Contact() {
       });
       setSent(true);
     } catch {
-      setErr('Message failed to send. Please email stay@orangebeachstay.com directly.');
+      setErr('Message failed to send. Please use the chat widget below to reach us.');
     } finally { setLoading(false); }
   };
 
@@ -125,7 +125,7 @@ export default function Contact() {
                   {loading ? 'Sending…' : 'Send message'}
                 </button>
                 <p style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 0' }}>
-                  Or email directly: <a href="mailto:stay@orangebeachstay.com">stay@orangebeachstay.com</a>
+                  You can also reach us via the chat widget in the bottom-right corner.
                 </p>
               </form>
             )}

@@ -40,7 +40,7 @@ export const PROPERTY = {
   },
 
   contact: {
-    email: 'stay@orangebeachstay.com',
+    email: '',
   },
 
   domain: 'https://orangebeachstay.com',

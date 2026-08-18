@@ -11,13 +11,21 @@ const VIDEO_ID = '3qOeNnhUb4A';
 
 export default function BackgroundMusic() {
   const playerRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [muted, setMuted] = useState(true);
   const [ready, setReady] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    // Create the YT player container OUTSIDE React's managed DOM tree
+    // so YT replacing the div with an iframe never confuses React's reconciler
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;pointer-events:none;visibility:hidden';
+    document.body.appendChild(container);
+    containerRef.current = container;
+
     function initPlayer() {
-      playerRef.current = new window.YT.Player('yt-bg-music', {
+      playerRef.current = new window.YT.Player(container, {
         videoId: VIDEO_ID,
         playerVars: {
           autoplay: 1,
@@ -53,6 +61,7 @@ export default function BackgroundMusic() {
 
     return () => {
       if (playerRef.current?.destroy) playerRef.current.destroy();
+      if (container.parentNode) container.parentNode.removeChild(container);
     };
   }, []);
 
@@ -67,20 +76,20 @@ export default function BackgroundMusic() {
     setMuted(m => !m);
   };
 
-  if (dismissed) return <div id="yt-bg-music" className="yt-hidden" />;
+  const dismiss = () => {
+    if (playerRef.current?.stopVideo) playerRef.current.stopVideo();
+    setDismissed(true);
+  };
+
+  if (dismissed || !ready) return null;
 
   return (
-    <>
-      <div id="yt-bg-music" className="yt-hidden" />
-      {ready && (
-        <div className="music-bar">
-          <button className="music-btn" onClick={toggleMute} aria-label={muted ? 'Unmute background music' : 'Mute background music'}>
-            <span className="music-icon">{muted ? '🔇' : '🎵'}</span>
-            <span className="music-label">{muted ? 'Play music' : 'Now playing'}</span>
-          </button>
-          <button className="music-dismiss" onClick={() => { playerRef.current?.stopVideo(); setDismissed(true); }} aria-label="Dismiss music player">✕</button>
-        </div>
-      )}
-    </>
+    <div className="music-bar">
+      <button className="music-btn" onClick={toggleMute} aria-label={muted ? 'Unmute background music' : 'Mute background music'}>
+        <span className="music-icon">{muted ? '🔇' : '🎵'}</span>
+        <span className="music-label">{muted ? 'Play music' : 'Now playing'}</span>
+      </button>
+      <button className="music-dismiss" onClick={dismiss} aria-label="Dismiss music player">✕</button>
+    </div>
   );
 }
