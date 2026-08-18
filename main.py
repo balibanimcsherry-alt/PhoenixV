@@ -200,7 +200,7 @@ async def get_listings(
 
 @app.get('/api/availability/blocked')
 async def blocked_dates():
-    from .integrations import _parse_ical_date, _blocked_ranges
+    from integrations import _parse_ical_date, _blocked_ranges
     url=settings.airbnb_ical_url
     if not url: return {'blocked':[],'source':'demo'}
     try:
