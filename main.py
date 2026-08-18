@@ -511,6 +511,28 @@ class AIChatIn(BaseModel):
     messages:list[dict]
     page:str=''
 
+class TTSIn(BaseModel):
+    text:str
+
+@app.post('/api/tts')
+async def text_to_speech(payload:TTSIn):
+    if not settings.openai_api_key:
+        raise HTTPException(status_code=503,detail='TTS not configured')
+    clean=payload.text[:600]
+    try:
+        from openai import AsyncOpenAI
+        from fastapi.responses import Response as _Resp
+        client=AsyncOpenAI(api_key=settings.openai_api_key)
+        resp=await client.audio.speech.create(
+            model='tts-1',
+            voice='nova',   # warm, natural, female
+            input=clean,
+            speed=0.95,
+        )
+        return _Resp(content=resp.content,media_type='audio/mpeg')
+    except Exception as e:
+        raise HTTPException(status_code=500,detail='TTS failed')
+
 @app.post('/api/chat/ai')
 async def ai_chat(payload:AIChatIn):
     if not settings.openai_api_key:
