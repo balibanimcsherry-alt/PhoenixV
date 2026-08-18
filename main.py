@@ -492,15 +492,24 @@ async def ai_chat(payload:AIChatIn):
     except Exception as e:
         return {'reply':'Sorry, I\'m having trouble right now. Please use the contact form and we\'ll reply shortly!'}
 
-# Serve React SPA in production (after npm run build creates dist/)
+# Serve React SPA in production
 from pathlib import Path as _Path
 from fastapi.staticfiles import StaticFiles as _StaticFiles
 from fastapi.responses import FileResponse as _FileResponse
 
 _dist = _Path(__file__).parent / 'dist'
+_public = _Path(__file__).parent / 'public'
+
 if _dist.exists():
     app.mount('/assets', _StaticFiles(directory=str(_dist / 'assets')), name='assets')
 
+if (_public / 'images').exists():
+    app.mount('/images', _StaticFiles(directory=str(_public / 'images')), name='images')
+
+if _dist.exists():
     @app.get('/{full_path:path}')
     async def _spa(full_path: str):
+        pub = _public / full_path
+        if pub.exists() and pub.is_file():
+            return _FileResponse(str(pub))
         return _FileResponse(str(_dist / 'index.html'))

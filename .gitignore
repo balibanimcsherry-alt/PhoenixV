@@ -1,5 +1,5 @@
 node_modules/
-dist/
+dist/images/
 .venv/
 __pycache__/
 **/__pycache__/

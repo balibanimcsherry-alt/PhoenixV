@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 68">
+  <!-- Badge emblem -->
+  <rect x="1" y="8" width="52" height="52" rx="12" fill="#0d5f6b"/>
+
+  <!-- Sun arc (gold) inside badge -->
+  <path d="M13 28 A14 14 0 0 1 41 28" fill="none" stroke="#d9a14e" stroke-width="2.4" stroke-linecap="round"/>
+
+  <!-- Primary wave (white) -->
+  <path d="M9 36 C14 30 20 30 27 36 S34 42 41 36 S47 30 53 36"
+        fill="none" stroke="white" stroke-width="2.6" stroke-linecap="round"/>
+
+  <!-- Secondary wave (white, softer) -->
+  <path d="M9 45 C14 39 20 39 27 45 S34 51 41 45 S47 39 53 45"
+        fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Vertical divider -->
+  <line x1="65" y1="15" x2="65" y2="55" stroke="#d0dbd8" stroke-width="1"/>
+
+  <!-- Brand name -->
+  <text x="77" y="37"
+        font-family="Georgia,'Times New Roman',serif"
+        font-size="22" font-weight="700"
+        fill="#0d5f6b" letter-spacing="-0.4">Coastal Haven</text>
+
+  <!-- Tagline -->
+  <text x="78" y="53"
+        font-family="Arial,Helvetica,sans-serif"
+        font-size="8.5" font-weight="600" letter-spacing="2.4"
+        fill="#8b7250">PHOENIX V · ORANGE BEACH</text>
+</svg>
