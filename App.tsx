@@ -4,6 +4,7 @@ import Home from './Home';
 import Book from './Book';
 import Admin from './Admin';
 import Flights from './Flights';
+import WeatherTheme from './WeatherTheme';
 import { trackPageView } from './analytics';
 
 function RouteTracker() {
@@ -14,6 +15,7 @@ function RouteTracker() {
 
 export default function App() {
   return <>
+    <WeatherTheme />
     <RouteTracker />
     <Routes>
       <Route path="/" element={<Home />} />
