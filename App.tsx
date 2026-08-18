@@ -21,6 +21,7 @@ import FamilyActivities from './FamilyActivities';
 import Blog from './Blog';
 import BlogPost from './BlogPost';
 import NotFound from './NotFound';
+import BackgroundMusic from './BackgroundMusic';
 import { trackPageView } from './analytics';
 
 function RouteTracker() {
@@ -33,6 +34,7 @@ export default function App() {
   return <>
     <WeatherTheme />
     <RouteTracker />
+    <BackgroundMusic />
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/book" element={<Book />} />
