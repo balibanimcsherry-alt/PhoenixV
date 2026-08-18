@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import String, Float, Boolean, Text, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column
-from .db import Base
+from db import Base
 class AppSettings(Base):
     __tablename__='app_settings'; id:Mapped[int]=mapped_column(Integer,primary_key=True,default=1); instant_booking:Mapped[bool]=mapped_column(Boolean,default=True); direct_discount_percent:Mapped[float]=mapped_column(Float,default=10); cleaning_fee:Mapped[float]=mapped_column(Float,default=220); tax_percent:Mapped[float]=mapped_column(Float,default=15); security_mode:Mapped[str]=mapped_column(String(40),default='authorization'); security_amount:Mapped[float]=mapped_column(Float,default=500); cancellation_policy:Mapped[str]=mapped_column(Text,default='Full refund up to 30 days before arrival; 50% refund up to 14 days before arrival; non-refundable inside 14 days.'); promo_code:Mapped[str]=mapped_column(String(50),default='RETURN10'); promo_percent:Mapped[float]=mapped_column(Float,default=10)
 class ChatMessage(Base):
