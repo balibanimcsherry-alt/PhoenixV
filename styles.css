@@ -480,3 +480,29 @@ html[data-theme="stormy-day"] body{background:linear-gradient(180deg,#ececf0 0%,
 .geo-dismiss-small{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;font:inherit}
 .geo-dismiss-small:hover{color:var(--ink);text-decoration:underline}
 @media(max-width:520px){.geo-card{padding:32px 22px}.geo-flag-big{font-size:48px}.geo-title{font-size:20px}}
+
+/* ── Local Guide ─────────────────────────────────────────────────────── */
+.local-guide-section{background:var(--sand)}
+.guide-date-note{font-size:15px;color:var(--teal);font-weight:600;margin:0}
+
+.guide-event-card{background:linear-gradient(135deg,var(--teal) 0%,#0e5c66 100%);color:white;border-radius:20px;padding:28px 32px;margin-bottom:32px;position:relative;overflow:hidden}
+.guide-event-card::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.guide-event-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
+.guide-event-title{font-family:'Libre Baskerville',serif;font-size:clamp(18px,2.5vw,24px);margin:0 0 10px;line-height:1.3;position:relative;z-index:1}
+.guide-event-desc{font-size:15px;line-height:1.7;margin:0;opacity:.9;max-width:680px;position:relative;z-index:1}
+
+.guide-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.guide-card{background:white;border-radius:18px;padding:24px 22px;display:flex;flex-direction:column;gap:6px;box-shadow:0 2px 12px rgba(8,30,34,.07);transition:transform .18s,box-shadow .18s}
+.guide-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(8,30,34,.12)}
+.guide-card-icon{width:42px;height:42px;background:var(--teal);border-radius:12px;display:flex;align-items:center;justify-content:center;color:white;margin-bottom:8px}
+.guide-card-label{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--teal);margin-bottom:2px}
+.guide-card-pick{font-weight:700;font-size:15px;color:var(--ink);line-height:1.3}
+.guide-card-dish{font-size:13px;color:var(--muted);font-style:italic}
+.guide-card-note{font-size:13px;color:var(--muted);line-height:1.65;margin:4px 0 0}
+.guide-card-time-tip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--teal);background:var(--sand);border-radius:999px;padding:3px 10px;margin-top:4px;width:fit-content}
+
+.guide-skeleton{animation:guide-pulse 1.5s ease-in-out infinite}
+@keyframes guide-pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+@media(max-width:900px){.guide-cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.guide-cards{grid-template-columns:1fr}.guide-event-card{padding:22px 20px}}

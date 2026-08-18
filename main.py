@@ -514,6 +514,107 @@ class AIChatIn(BaseModel):
 class TTSIn(BaseModel):
     text:str
 
+# ── Local Guide ─────────────────────────────────────────────────────────
+import json as _json
+from datetime import date as _date
+
+_GUIDE_CACHE: dict = {'date': None, 'data': None}
+
+_GUIDE_FALLBACK = {
+    'date_note': 'Gulf Coast fun year-round',
+    'event': {
+        'title': 'Gulf State Park — Trails, Beach & Nature Center',
+        'description': '28 miles of paved trails for biking and hiking, kayak launches on the back bays, and a nature center with live sea turtle exhibits. Open daily, right next to Orange Beach.',
+        'type': 'seasonal'
+    },
+    'seafood': {
+        'pick': "GT's On The Bay",
+        'dish': 'Fresh Gulf shrimp or catch-of-the-day',
+        'note': 'Right on the water in Orange Beach — great dockside atmosphere and reliably fresh Gulf seafood at reasonable prices.'
+    },
+    'dolphins': {
+        'tip': 'Morning departures (9–11 AM) have calmer water and significantly higher dolphin sighting rates. Cetacean Cruises and Lost Bay Dolphin Tours both depart near the marina. Book at least a day ahead in summer.',
+        'best_time': 'morning'
+    },
+    'wharf': {
+        'highlight': 'SkyWheel, live music & marina dining',
+        'note': "The 112-foot SkyWheel gives panoramic views of the Intracoastal Waterway. Check The Wharf's calendar — weekend concerts happen regularly at the amphitheater."
+    },
+    'planning_tip': 'Guests receive a detailed arrival guide after booking — it covers parking ($55/vehicle), beach chair rentals, grocery delivery options, and the best sunrise spots. Check-in is 4 PM sharp.'
+}
+
+_GUIDE_PROMPT = """You are a local expert for Orange Beach, Alabama and the Alabama Gulf Coast.
+
+Today is {weekday}, {month_day}, {year} (season: {season}).
+
+Generate a local guide for guests at Coastal Haven — a Gulf-front condo at Phoenix V, 14th floor, Orange Beach, AL.
+
+Create content that feels timely and specific to this date. Use real Orange Beach/Gulf Shores venues and events where possible (Tacky Jack's, GT's On The Bay, Luna's Eat & Drink, Cobalt, The Wharf amphitheater, Flora-Bama, Perdido Beach Resort, Gulf State Park, Cetacean Cruises, Lost Bay Dolphin Tours, etc.). Be brief, practical, and warm in tone.
+
+Return ONLY valid JSON in this exact structure (no markdown, no extra text):
+{{
+  "date_note": "1 short phrase capturing the vibe or season (e.g. 'Peak shrimp season' or 'Quieter fall crowds — best time to visit')",
+  "event": {{
+    "title": "A seasonal event, local happening, or notable thing to do right now",
+    "description": "2 sentences — what it is and why guests should care this time of year",
+    "type": "festival|market|concert|sport|seasonal|weekly"
+  }},
+  "seafood": {{
+    "pick": "Restaurant name",
+    "dish": "Specific dish or specialty",
+    "note": "1 sentence — why this pick makes sense for this time of year"
+  }},
+  "dolphins": {{
+    "tip": "1–2 sentences of practical dolphin cruise advice relevant to this season",
+    "best_time": "morning|afternoon|evening"
+  }},
+  "wharf": {{
+    "highlight": "What's notable at The Wharf right now (event, feature, or seasonal draw)",
+    "note": "1 sentence detail"
+  }},
+  "planning_tip": "1–2 sentence planning tip specific to the current season or month"
+}}"""
+
+def _get_season(m: int) -> str:
+    if m in (12, 1, 2): return 'winter'
+    if m in (3, 4, 5):  return 'spring'
+    if m in (6, 7, 8):  return 'summer (peak season)'
+    return 'fall'
+
+@app.get('/api/local-guide')
+async def local_guide():
+    today = _date.today()
+    if _GUIDE_CACHE['date'] == today and _GUIDE_CACHE['data']:
+        return _GUIDE_CACHE['data']
+
+    if not settings.openai_api_key:
+        return _GUIDE_FALLBACK
+
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=settings.openai_api_key)
+        prompt = _GUIDE_PROMPT.format(
+            weekday=today.strftime('%A'),
+            month_day=f"{today.strftime('%B')} {today.day}",
+            year=today.year,
+            season=_get_season(today.month),
+        )
+        resp = await client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[{'role': 'user', 'content': prompt}],
+            max_tokens=600,
+            temperature=0.7,
+            response_format={'type': 'json_object'},
+        )
+        data = _json.loads(resp.choices[0].message.content)
+        _GUIDE_CACHE['date'] = today
+        _GUIDE_CACHE['data'] = data
+        return data
+    except Exception:
+        return _GUIDE_FALLBACK
+
+# ────────────────────────────────────────────────────────────────────────
+
 @app.post('/api/tts')
 async def text_to_speech(payload:TTSIn):
     if not settings.openai_api_key:

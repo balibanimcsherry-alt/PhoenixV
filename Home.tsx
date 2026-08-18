@@ -1,10 +1,11 @@
-import { Waves, BedDouble, Bath, Users, MapPin, Heart, ShieldCheck, Star, Utensils, Baby, Dumbbell, Flame, Wifi, Car } from 'lucide-react';
+import { Waves, BedDouble, Bath, Users, MapPin, Heart, ShieldCheck, Star, Baby, Dumbbell, Flame } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import BookingBar from './BookingBar';
 import WeatherWidget from './WeatherWidget';
 import PhotoGallery from './PhotoGallery';
 import SEOMeta from './SEOMeta';
+import LocalGuide from './LocalGuide';
 import { amenities, reviews } from './content';
 
 export default function Home(){
@@ -37,7 +38,7 @@ export default function Home(){
 
       <section id="reviews" className="section"><div className="section-head"><div><div className="eyebrow dark">GUEST LOVE</div><h2>Easy stays make the best memories.</h2></div></div><div className="review-grid">{reviews.map(r=><article key={r.source}><div className="stars">★★★★★</div><blockquote>{r.text}</blockquote><div><strong>{r.source}</strong><span>{r.rating}</span></div></article>)}</div></section>
 
-      <section id="guide" className="section guide"><div className="guide-image"><img src="/images/coast.jpg" alt="Orange Beach coastline"/></div><div className="guide-copy"><div className="eyebrow dark">ORANGE BEACH, ALABAMA</div><h2>Your Gulf Coast days, planned.</h2><p>Walk the beach at sunrise, explore Gulf State Park, book a dolphin cruise, spend an evening at The Wharf, or keep it simple with seafood and sunset close to home.</p><div className="guide-tags"><span><Utensils/>Local seafood</span><span><Waves/>Dolphin cruises</span><span><Car/>The Wharf</span><span><Wifi/>Easy planning</span></div><p className="small-note">Guests receive a more detailed arrival guide after booking. The exact unit address is shared only with confirmed guests.</p></div></section>
+      <LocalGuide />
 
       <section className="section webcam-section">
         <div className="section-head"><div><div className="eyebrow dark">LIVE FROM THE BEACH</div><h2>See the Gulf right now.</h2></div><p>Watch the waves live from Perdido Beach Blvd in Orange Beach — just minutes from Coastal Haven.</p></div>
