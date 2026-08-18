@@ -523,57 +523,79 @@ _GUIDE_CACHE: dict = {'date': None, 'data': None}
 _GUIDE_FALLBACK = {
     'date_note': 'Gulf Coast fun year-round',
     'event': {
-        'title': 'Gulf State Park — Trails, Beach & Nature Center',
-        'description': '28 miles of paved trails for biking and hiking, kayak launches on the back bays, and a nature center with live sea turtle exhibits. Open daily, right next to Orange Beach.',
-        'type': 'seasonal'
+        'title': 'Flora-Bama Live Music Weekend',
+        'description': 'The legendary Flora-Bama roadhouse on the Alabama-Florida line runs live music every Friday and Saturday night. One of the most iconic Gulf Coast experiences — catch a set before or after dinner.',
+        'type': 'weekly'
     },
-    'seafood': {
-        'pick': "GT's On The Bay",
-        'dish': 'Fresh Gulf shrimp or catch-of-the-day',
-        'note': 'Right on the water in Orange Beach — great dockside atmosphere and reliably fresh Gulf seafood at reasonable prices.'
-    },
-    'dolphins': {
-        'tip': 'Morning departures (9–11 AM) have calmer water and significantly higher dolphin sighting rates. Cetacean Cruises and Lost Bay Dolphin Tours both depart near the marina. Book at least a day ahead in summer.',
-        'best_time': 'morning'
-    },
-    'wharf': {
-        'highlight': 'SkyWheel, live music & marina dining',
-        'note': "The 112-foot SkyWheel gives panoramic views of the Intracoastal Waterway. Check The Wharf's calendar — weekend concerts happen regularly at the amphitheater."
-    },
-    'planning_tip': 'Guests receive a detailed arrival guide after booking — it covers parking ($55/vehicle), beach chair rentals, grocery delivery options, and the best sunrise spots. Check-in is 4 PM sharp.'
+    'restaurants': [
+        {'name': "GT's On The Bay", 'type': 'Seafood', 'vibe': 'Waterfront dockside', 'must_try': 'Gulf shrimp basket', 'note': 'Right on the water — great for lunch or a casual sunset dinner.'},
+        {'name': "Luna's Eat & Drink", 'type': 'Gulf Coast fusion', 'vibe': 'Upscale casual', 'must_try': 'Gulf fish tacos or the craft cocktail menu', 'note': 'One of Orange Beach\'s most celebrated dining spots. Reservations recommended.'},
+        {'name': 'Cobalt', 'type': 'Fine dining', 'vibe': 'Elegant, Gulf views', 'must_try': 'Fresh grouper or the Gulf Coast sampler', 'note': 'Special-occasion dining with stunning waterfront views. Book ahead.'},
+        {'name': "Tacky Jack's", 'type': 'Bar & Grill', 'vibe': 'Laid-back waterfront', 'must_try': 'Fish tacos and frozen drinks', 'note': 'Perfect for a low-key lunch or watching boats from the deck.'},
+        {'name': "Voyagers at Perdido Beach Resort", 'type': 'Resort dining', 'vibe': 'Beachfront, upscale', 'must_try': 'Catch of the day — sourced fresh daily', 'note': 'Stunning Gulf views from every table. Best at sunset.'},
+        {'name': "Doc's Seafood Shack & Oyster Bar", 'type': 'Seafood', 'vibe': 'Old-school local', 'must_try': 'Fresh oysters and fried shrimp platter', 'note': 'A Gulf Shores institution since 1956. Casual, cheap, and delicious.'},
+        {'name': "Fisher's at Orange Beach Marina", 'type': 'Upscale seafood', 'vibe': 'Marina-side, refined', 'must_try': 'Seared grouper or crab-stuffed flounder', 'note': 'Consistently ranked among the best fine dining on the Gulf Coast.'},
+        {'name': "The Ugly Grouper", 'type': 'Seafood bar', 'vibe': 'Casual, fun', 'must_try': 'Ugly Burger or Gulf fish sandwich', 'note': 'Beachside spot with great food, cold beer, and no pretension.'},
+        {'name': "LuLu's Gulf Shores", 'type': 'Family waterfront', 'vibe': 'Festive, all-ages', 'must_try': 'Cheeseburger in Paradise or seafood platter', 'note': "Jimmy Buffett's sister's restaurant — lively, fun, and perfect for families."},
+        {'name': "Zekes Landing", 'type': 'Marina grill', 'vibe': 'Local hangout', 'must_try': 'Grilled snapper or shrimp po-boy', 'note': 'Where local fishermen eat — fresh, honest, and affordable.'},
+    ],
+    'activities': [
+        {'title': 'Dolphin Cruise', 'duration': '2 hrs', 'tip': 'Book morning departures (9–11 AM) for calmer water and higher sighting rates.', 'note': 'Cetacean Cruises and Lost Bay Dolphin Tours both depart near the Orange Beach Marina.'},
+        {'title': 'Gulf State Park', 'duration': 'Half or full day', 'tip': 'Rent bikes at the park entrance — the 28-mile paved trail runs right to the beach.', 'note': 'Also has a nature center with live sea turtles, kayak rentals, and back-bay launches.'},
+        {'title': 'The Wharf', 'duration': '2–4 hrs', 'tip': 'Visit evenings when the SkyWheel lights up and the amphitheater has live music.', 'note': '112-foot Ferris wheel, waterfront dining, shops, and a marina — walkable entertainment hub.'},
+        {'title': 'Deep-Sea Fishing Charter', 'duration': '4–8 hrs', 'tip': 'Half-day charters are great for families; full-day for serious anglers targeting snapper and grouper.', 'note': 'Orange Beach Marina has dozens of licensed charter boats. Book 24–48 hours ahead.'},
+        {'title': 'Kayak & Paddleboard the Back Bays', 'duration': '2–3 hrs', 'tip': 'Early morning is glassy-calm. Wolf Bay and Terry Cove are excellent for beginners.', 'note': 'Rentals available at Adventure Island and several waterfront shops.'},
+        {'title': 'Snorkeling at Perdido Pass', 'duration': '2–3 hrs', 'tip': 'Take a boat tour out to nearshore reefs — visibility is best June through September.', 'note': 'Several local outfitters offer guided snorkel trips with gear included.'},
+        {'title': 'Jet Ski & Pontoon Rentals', 'duration': 'Hourly', 'tip': 'Pontoon boats are perfect for a family sunset cruise on the Intracoastal Waterway.', 'note': 'Coastal Watersports and Liquid Life Watersports are close to Phoenix V.'},
+        {'title': 'Flora-Bama Live Music', 'duration': 'Evening', 'tip': 'Arrive early for a waterfront table. The Mullet Toss every April is a bucket-list event.', 'note': 'A legendary roadhouse right on the Alabama-Florida state line. Multiple stages, cold beer, real characters.'},
+        {'title': 'Sunset Sailboat Cruise', 'duration': '2 hrs', 'tip': 'Several operators depart from the Orange Beach Marina around 5–6 PM. Cash bar on board.', 'note': 'A Gulf Coast rite of passage. The light on the water at golden hour is genuinely special.'},
+        {'title': 'Orange Beach Indian & Sea Museum', 'duration': '1–2 hrs', 'tip': 'Great rainy-day option and surprisingly fascinating for both kids and adults.', 'note': 'Covers local Native American history and the Gulf Coast fishing and maritime heritage.'},
+    ],
+    'highlights': [
+        {'title': 'Check-in at 4 PM sharp', 'note': 'Plan your grocery run for right after check-in. Publix on Canal Road (~10 min drive) is the go-to. Walmart is nearby for bulk and supplies.'},
+        {'title': 'Parking is $55 per vehicle', 'note': 'Phoenix V limits guests to 2 vehicles. The parking pass is managed through the HOA — details in your booking confirmation.'},
+        {'title': 'Best sunrise spot', 'note': 'Your 14th-floor balcony faces the Gulf. Sunrises are spectacular — set an alarm once at least.'},
+        {'title': 'Beach chair rentals', 'note': 'Chairs and umbrellas can be rented at the base of Phoenix V. Rates vary by season. First-come basis early in the day.'},
+        {'title': 'Book tours 24–48 hours ahead', 'note': 'Dolphin cruises, fishing charters, and snorkel tours fill fast in summer. Walk-up availability is rare June–August.'},
+        {'title': 'Gulf State Park trail', 'note': '28 miles of paved, flat trails — excellent for cycling with kids. Bike rentals available at the park. No car needed once you\'re on a bike.'},
+        {'title': 'Flora-Bama is 10 minutes east', 'note': 'One of the most unique bars in America, sitting literally on the state line. Worth a visit any time of year for the vibe alone.'},
+        {'title': 'No fishing license for shore/pier fishing', 'note': 'Alabama does not require a license for saltwater fishing from the shore, a pier, or a private vessel. Charter boats handle licensing for passengers.'},
+        {'title': 'Grocery delivery available', 'note': 'Instacart and Shipt both deliver to Phoenix V. Pre-order groceries to arrive an hour after check-in so the fridge is stocked.'},
+        {'title': 'Gulf Shores vs Orange Beach', 'note': 'Gulf Shores is 15 minutes west and has Waterville water park, more family attractions, and Gulf Place shopping. Orange Beach is quieter and more marina-focused.'},
+    ]
 }
 
 _GUIDE_PROMPT = """You are a local expert for Orange Beach, Alabama and the Alabama Gulf Coast.
 
 Today is {weekday}, {month_day}, {year} (season: {season}).
 
-Generate a local guide for guests at Coastal Haven — a Gulf-front condo at Phoenix V, 14th floor, Orange Beach, AL.
+Generate a comprehensive daily local guide for guests at Coastal Haven — a Gulf-front condo at Phoenix V, 14th floor, Orange Beach, AL.
 
-Create content that feels timely and specific to this date. Use real Orange Beach/Gulf Shores venues and events where possible (Tacky Jack's, GT's On The Bay, Luna's Eat & Drink, Cobalt, The Wharf amphitheater, Flora-Bama, Perdido Beach Resort, Gulf State Park, Cetacean Cruises, Lost Bay Dolphin Tours, etc.). Be brief, practical, and warm in tone.
+Use REAL Orange Beach and Gulf Shores venues only. Be specific, brief, and genuinely helpful. Content should feel appropriate for the current season.
 
-Return ONLY valid JSON in this exact structure (no markdown, no extra text):
+Return ONLY valid JSON — no markdown, no extra text. The JSON must match this structure exactly:
 {{
-  "date_note": "1 short phrase capturing the vibe or season (e.g. 'Peak shrimp season' or 'Quieter fall crowds — best time to visit')",
+  "date_note": "Short phrase for current season vibe (e.g. 'Peak summer — book everything ahead')",
   "event": {{
-    "title": "A seasonal event, local happening, or notable thing to do right now",
-    "description": "2 sentences — what it is and why guests should care this time of year",
+    "title": "One seasonal event or local happening right now",
+    "description": "2 sentences on what it is and why guests should go",
     "type": "festival|market|concert|sport|seasonal|weekly"
   }},
-  "seafood": {{
-    "pick": "Restaurant name",
-    "dish": "Specific dish or specialty",
-    "note": "1 sentence — why this pick makes sense for this time of year"
-  }},
-  "dolphins": {{
-    "tip": "1–2 sentences of practical dolphin cruise advice relevant to this season",
-    "best_time": "morning|afternoon|evening"
-  }},
-  "wharf": {{
-    "highlight": "What's notable at The Wharf right now (event, feature, or seasonal draw)",
-    "note": "1 sentence detail"
-  }},
-  "planning_tip": "1–2 sentence planning tip specific to the current season or month"
-}}"""
+  "restaurants": [
+    {{"name": "...", "type": "cuisine type", "vibe": "atmosphere in 3 words", "must_try": "specific dish", "note": "1 sentence"}}
+  ],
+  "activities": [
+    {{"title": "...", "duration": "time estimate", "tip": "1 practical tip", "note": "1 sentence context"}}
+  ],
+  "highlights": [
+    {{"title": "short title", "note": "1–2 sentences of actionable info"}}
+  ]
+}}
+
+Rules:
+- restaurants: exactly 10 items. Mix seafood, casual, upscale, family-friendly. Include GT's On The Bay, Luna's, Cobalt, Tacky Jack's, Fisher's, Doc's, LuLu's, The Ugly Grouper, Voyagers, and one seasonal pick.
+- activities: exactly 10 items. Include dolphin cruises, Gulf State Park, The Wharf, fishing, watersports, Flora-Bama, and others relevant to {season}.
+- highlights: exactly 10 items. Practical guest tips: parking, check-in, booking ahead, grocery, beach access, local knowledge."""
 
 def _get_season(m: int) -> str:
     if m in (12, 1, 2): return 'winter'
@@ -602,7 +624,7 @@ async def local_guide():
         resp = await client.chat.completions.create(
             model='gpt-4o-mini',
             messages=[{'role': 'user', 'content': prompt}],
-            max_tokens=600,
+            max_tokens=2000,
             temperature=0.7,
             response_format={'type': 'json_object'},
         )
