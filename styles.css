@@ -465,3 +465,18 @@ html[data-theme="stormy-day"] body{background:linear-gradient(180deg,#ececf0 0%,
 
 @media(max-width:900px){.game-shell{padding:32px 22px}.crab-tap-btn{min-height:130px;font-size:22px}.trivia-q{font-size:19px}}
 @media(max-width:600px){.game-shell{padding:24px 16px}.crab-tap-btn{min-height:120px;font-size:20px}.trivia-q{font-size:17px}.bingo-sq{font-size:9px;min-height:44px}.bingo-hdr{font-size:14px}.mullet-dist{font-size:38px}.crab-lane-label{width:70px}.games-grid{grid-template-columns:1fr}}
+
+/* ── Geo Gate ────────────────────────────────────────────────────────── */
+.geo-backdrop{position:fixed;inset:0;z-index:600;background:rgba(8,30,34,.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;animation:geo-fade-in .4s ease}
+@keyframes geo-fade-in{from{opacity:0}to{opacity:1}}
+.geo-card{background:white;border-radius:28px;padding:44px 40px;max-width:520px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(8,30,34,.4);animation:geo-slide-up .4s cubic-bezier(.2,1,.4,1)}
+@keyframes geo-slide-up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+.geo-flag-big{font-size:64px;line-height:1;margin-bottom:16px}
+.geo-eyebrow{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--coral);margin-bottom:10px}
+.geo-title{font-family:'Libre Baskerville',serif;font-size:clamp(20px,3vw,26px);margin:0 0 16px;color:var(--ink);line-height:1.3}
+.geo-body{font-size:15px;line-height:1.75;color:var(--muted);margin:0 0 10px}
+.geo-quip{font-size:15px;line-height:1.75;color:var(--ink);background:var(--sand);border-radius:14px;padding:14px 18px;margin:16px 0;font-style:italic}
+.geo-btn{padding:14px 32px;font-size:16px;margin-top:14px;width:100%}
+.geo-dismiss-small{display:block;margin:12px auto 0;background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;font:inherit}
+.geo-dismiss-small:hover{color:var(--ink);text-decoration:underline}
+@media(max-width:520px){.geo-card{padding:32px 22px}.geo-flag-big{font-size:48px}.geo-title{font-size:20px}}

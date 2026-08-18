@@ -26,6 +26,7 @@ import Games from './Games';
 import NotFound from './NotFound';
 import BackgroundMusic from './BackgroundMusic';
 import OceanAvatar from './OceanAvatar';
+import GeoGate from './GeoGate';
 import { trackPageView } from './analytics';
 
 function RouteTracker() {
@@ -45,6 +46,7 @@ export default function App() {
     <RouteTracker />
     <BackgroundMusic />
     <OceanAvatar />
+    <GeoGate />
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/book" element={<Book />} />
