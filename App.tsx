@@ -18,6 +18,7 @@ import OrangeBeachRestaurants from './OrangeBeachRestaurants';
 import Gallery from './Gallery';
 import OrangeBeachBeaches from './OrangeBeachBeaches';
 import FamilyActivities from './FamilyActivities';
+import CancellationPolicy from './CancellationPolicy';
 import Blog from './Blog';
 import BlogPost from './BlogPost';
 import NotFound from './NotFound';
@@ -54,6 +55,7 @@ export default function App() {
       <Route path="/gallery" element={<Gallery />} />
       <Route path="/orange-beach-beaches" element={<OrangeBeachBeaches />} />
       <Route path="/family-activities-orange-beach" element={<FamilyActivities />} />
+      <Route path="/cancellation-policy" element={<CancellationPolicy />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="*" element={<NotFound />} />
