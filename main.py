@@ -24,7 +24,7 @@ app=FastAPI(title='Coastal Haven API',version='1.0.0')
 async def _startup():
     try: Base.metadata.create_all(bind=engine)
     except Exception as e: print(f'DB init warning: {e}')
-app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
+app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'https://www.orangebeachstay.com','https://coastal-haven.onrender.com','http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
 
 _SKIP_ANALYTICS={'/docs','/openapi.json','/favicon.ico'}
 
