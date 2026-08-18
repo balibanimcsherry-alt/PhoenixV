@@ -16,15 +16,13 @@
 
 /* Ambient tints per theme */
 html[data-theme="sunny-day"] .wt-ambient{background:linear-gradient(180deg,rgba(255,220,80,.07) 0%,transparent 55%)}
-/* Clear nights — deep indigo with warm moon-glow in upper right */
+/* Clear nights — deep indigo sky */
 html[data-theme="sunny-night"] .wt-ambient,
 html[data-theme="cloudy-night"] .wt-ambient,
 html[data-theme="fall-night"] .wt-ambient,
 html[data-theme="spring-night"] .wt-ambient,
 html[data-theme="foggy-night"] .wt-ambient{
-  background:
-    radial-gradient(ellipse 38% 22% at 85% 10%,rgba(255,242,130,.10) 0%,transparent 70%),
-    linear-gradient(180deg,rgba(4,10,38,.42) 0%,rgba(6,14,46,.28) 45%,rgba(8,16,50,.14) 100%);
+  background:linear-gradient(180deg,rgba(4,10,38,.42) 0%,rgba(6,14,46,.28) 45%,rgba(8,16,50,.14) 100%);
 }
 /* Rainy / snowy nights — darker, no moon glow */
 html[data-theme="rainy-night"] .wt-ambient{

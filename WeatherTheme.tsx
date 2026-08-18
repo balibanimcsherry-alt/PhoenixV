@@ -214,10 +214,6 @@ function ThemeOverlay({ theme }: { theme: Theme }) {
 
       {/* ── Night sky ── */}
       {clearNight && <>
-        {/* Moon with halo and moonbeam */}
-        <div className="wt-moon" />
-        <div className="wt-moonbeam" />
-
         {/* Shooting stars */}
         {SHOOT_CONFIGS.map((cfg, i) => (
           <span key={i} className="wt-shoot" style={{
