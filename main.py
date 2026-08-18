@@ -356,17 +356,26 @@ async def checkout(payload:BookingIn,db:Session=Depends(get_db),authorization:st
     booking=BookingRequest(checkin=payload.checkin,checkout=payload.checkout,guests=payload.guests,guest_name=payload.guest_name,email=payload.email,phone=payload.phone,address=payload.address,customer_id=cid,total=q['total'],status='payment_pending' if s.instant_booking else 'pending_approval')
     db.add(booking);db.commit();db.refresh(booking)
     if not s.instant_booking: return {'status':'pending_approval','booking_id':booking.id}
-    if not settings.active_stripe_secret_key: raise HTTPException(503,'Stripe is not configured')
+    if not settings.active_stripe_secret_key: raise HTTPException(503,'Stripe is not configured. Please contact us to complete your booking.')
     stripe.api_key=settings.active_stripe_secret_key
     success_url=settings.stripe_success_url+f'&booking_id={booking.id}'
-    session=stripe.checkout.Session.create(
-        mode='payment',
-        line_items=[{'price_data':{'currency':'usd','product_data':{'name':'Coastal Haven — Orange Beach stay','description':f"{payload.checkin} to {payload.checkout}, {payload.guests} guests"},'unit_amount':round(q['total']*100)},'quantity':1}],
-        customer_email=payload.email or None,
-        success_url=success_url,
-        cancel_url=settings.stripe_cancel_url,
-        metadata={'booking_id':str(booking.id)}
-    )
+    try:
+        session=stripe.checkout.Session.create(
+            mode='payment',
+            line_items=[{'price_data':{'currency':'usd','product_data':{'name':'Coastal Haven — Orange Beach stay','description':f"{payload.checkin} to {payload.checkout}, {payload.guests} guests"},'unit_amount':max(50,round(q['total']*100))},'quantity':1}],
+            customer_email=payload.email or None,
+            success_url=success_url,
+            cancel_url=settings.stripe_cancel_url,
+            metadata={'booking_id':str(booking.id)}
+        )
+    except stripe.error.AuthenticationError:
+        raise HTTPException(503,'Payment system configuration error. Please contact us to complete your booking.')
+    except stripe.error.InvalidRequestError as e:
+        print(f'Stripe InvalidRequestError booking {booking.id}: {e}')
+        raise HTTPException(400,'Payment session could not be created. Please check your details and try again.')
+    except stripe.error.StripeError as e:
+        print(f'Stripe error booking {booking.id}: {e}')
+        raise HTTPException(502,'Payment provider unavailable. Please try again in a moment.')
     return {'url':session.url,'booking_id':booking.id}
 
 @app.get('/api/booking/{booking_id}')

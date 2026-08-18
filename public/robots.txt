@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin
+Disallow: /api/
+Disallow: /book?success=1
+Disallow: /account
+
+Sitemap: https://orangebeachstay.com/sitemap.xml

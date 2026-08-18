@@ -1,9 +1,11 @@
 import { Waves, BedDouble, Bath, Users, MapPin, Heart, ShieldCheck, Star, Utensils, Baby, Dumbbell, Flame, Wifi, Car } from 'lucide-react';
 import Header from './Header';
+import Footer from './Footer';
 import BookingBar from './BookingBar';
 import ChatWidget from './ChatWidget';
 import WeatherWidget from './WeatherWidget';
 import PhotoGallery from './PhotoGallery';
+import SEOMeta from './SEOMeta';
 import { amenities, reviews } from './content';
 
 export default function Home(){
@@ -72,7 +74,7 @@ export default function Home(){
         </div>
       </section>
     </main>
-    <footer><img src="/logo.svg"/><p>Coastal Haven • Phoenix V • Orange Beach, Alabama</p><p><a href="mailto:stay@orangebeachstay.com">stay@orangebeachstay.com</a></p><small>© {new Date().getFullYear()} Coastal Haven. Exact address and unit details are provided after confirmed booking.</small></footer>
+    <Footer />
     <BookingBar floating/><ChatWidget/>
   </div>
 }

@@ -4,6 +4,7 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import Header from './Header';
 import ChatWidget from './ChatWidget';
 import DateRangePicker from './DateRangePicker';
+import AddressInput from './AddressInput';
 import { api } from './api';
 import { track } from './analytics';
 
@@ -147,7 +148,7 @@ function AuthModal({ onClose, onAuth }: { onClose: () => void; onAuth: (c: Custo
         <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" /></label>
         {mode === 'register' && <>
           <label>Phone<input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 555 000 0000" /></label>
-          <label>Home address<input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St, City, State ZIP" /></label>
+          <label>Home address<AddressInput value={address} onChange={setAddress} /></label>
         </>}
         <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} /></label>
         {err && <p className="error">{err}</p>}
@@ -320,7 +321,7 @@ export default function Book() {
               <input type="tel" placeholder="+1 555 000 0000" value={phone} onChange={e => setPhone(e.target.value)} />
             </label>
             <label>Home address <span className="req">*</span>
-              <input type="text" placeholder="123 Main St, City, State ZIP" value={address} onChange={e => setAddress(e.target.value)} />
+              <AddressInput value={address} onChange={setAddress} />
             </label>
 
             {!customer && <>
