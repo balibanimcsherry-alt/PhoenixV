@@ -15,6 +15,7 @@ export default function Footer() {
             <a href="/amenities">Amenities</a>
             <a href="/gallery">Gallery</a>
             <a href="/reviews">Reviews</a>
+            <a href="/games">Games</a>
             <a href="/phoenix-v-orange-beach">Phoenix V</a>
           </nav>
         </div>

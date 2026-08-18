@@ -12,6 +12,7 @@ export default function Header(){
       <a href="/#gallery" onClick={()=>setOpen(false)}>Gallery</a>
       <a href="/#guide" onClick={()=>setOpen(false)}>Local Guide</a>
       <a href="/#reviews" onClick={()=>setOpen(false)}>Reviews</a>
+      <Link to="/games" onClick={()=>setOpen(false)}>Games</Link>
       <Link to="/flights" onClick={()=>setOpen(false)}>Flights</Link>
       <Link to="/book" className="btn btn-small" onClick={()=>setOpen(false)}>Check Availability</Link>
     </nav>

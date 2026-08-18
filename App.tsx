@@ -22,6 +22,7 @@ import CancellationPolicy from './CancellationPolicy';
 import HouseRules from './HouseRules';
 import Blog from './Blog';
 import BlogPost from './BlogPost';
+import Games from './Games';
 import NotFound from './NotFound';
 import BackgroundMusic from './BackgroundMusic';
 import OceanAvatar from './OceanAvatar';
@@ -67,6 +68,7 @@ export default function App() {
       <Route path="/house-rules" element={<HouseRules />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
+      <Route path="/games" element={<Games />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </>;
