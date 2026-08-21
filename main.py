@@ -11,11 +11,11 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
-from integrations import airbnb_available, pricelabs_nightly_rate
+from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_name
 import analytics as _analytics
 from email_service import send_booking_confirmation, send_owner_notification
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
@@ -52,7 +52,9 @@ def get_settings(db:Session):
 def make_token(): return jwt.encode({'sub':'admin','exp':datetime.now(timezone.utc)+timedelta(hours=12)},settings.jwt_secret,algorithm='HS256')
 def require_admin(authorization:str|None=Header(default=None)):
     if not authorization or not authorization.startswith('Bearer '): raise HTTPException(401,'Admin login required')
-    try: jwt.decode(authorization.split(' ',1)[1],settings.jwt_secret,algorithms=['HS256'])
+    try:
+        p=jwt.decode(authorization.split(' ',1)[1],settings.jwt_secret,algorithms=['HS256'])
+        if p.get('sub')!='admin': raise HTTPException(401,'Admin access required')
     except JWTError: raise HTTPException(401,'Invalid or expired token')
 
 DEMO_FLIGHTS_OUT=[
@@ -214,10 +216,7 @@ async def blocked_dates():
     except Exception:
         return {'blocked':[],'source':'error'}
 
-@app.get('/api/calendar.ics', response_class=PlainTextResponse)
-def export_calendar(token:str=Query(''), db:Session=Depends(get_db)):
-    if token != settings.calendar_token:
-        raise HTTPException(403, 'Invalid calendar token')
+def _build_calendar_ics(db: Session) -> str:
     bookings = db.query(BookingRequest).filter(
         BookingRequest.status.in_(['confirmed','payment_pending','pending_approval'])
     ).all()
@@ -227,7 +226,18 @@ def export_calendar(token:str=Query(''), db:Session=Depends(get_db)):
         'PRODID:-//Coastal Haven//Direct Booking//EN',
         'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH',
-        'X-WR-CALNAME:Coastal Haven - Direct Bookings',
+        'X-WR-CALNAME:Coastal Haven Direct Bookings',
+        'X-WR-TIMEZONE:America/New_York',
+    ]
+    # Placeholder event — keeps the feed non-empty so OTA validators accept it on first import
+    lines += [
+        'BEGIN:VEVENT',
+        'UID:setup@coastalhaven',
+        'DTSTART;VALUE=DATE:20260101',
+        'DTEND;VALUE=DATE:20260102',
+        'SUMMARY:Coastal Haven - Calendar Active',
+        'STATUS:CONFIRMED',
+        'END:VEVENT',
     ]
     for b in bookings:
         try:
@@ -242,14 +252,27 @@ def export_calendar(token:str=Query(''), db:Session=Depends(get_db)):
             f'UID:{uid}',
             f'DTSTART;VALUE=DATE:{ci.strftime("%Y%m%d")}',
             f'DTEND;VALUE=DATE:{co.strftime("%Y%m%d")}',
-            f'SUMMARY:Coastal Haven - Reserved',
+            'SUMMARY:Coastal Haven - Reserved',
             f'DESCRIPTION:Direct booking ({b.guests} guests)',
-            f'STATUS:CONFIRMED',
+            'STATUS:CONFIRMED',
             f'CREATED:{created}',
             'END:VEVENT',
         ]
     lines.append('END:VCALENDAR')
-    return PlainTextResponse('\r\n'.join(lines), media_type='text/calendar; charset=utf-8')
+    return '\r\n'.join(lines)
+
+@app.get('/api/calendar.ics', response_class=PlainTextResponse)
+def export_calendar(token:str=Query(''), db:Session=Depends(get_db)):
+    if token != settings.calendar_token:
+        raise HTTPException(403, 'Invalid calendar token')
+    return PlainTextResponse(_build_calendar_ics(db), media_type='text/calendar; charset=utf-8')
+
+# Clean path-based alias — no query params — compatible with VRBO, Booking.com, Airbnb
+@app.get('/api/calendar/{token}.ics', response_class=PlainTextResponse)
+def export_calendar_path(token:str, db:Session=Depends(get_db)):
+    if token != settings.calendar_token:
+        raise HTTPException(403, 'Invalid calendar token')
+    return PlainTextResponse(_build_calendar_ics(db), media_type='text/calendar; charset=utf-8')
 
 @app.get('/health')
 def health(): return {'ok':True,'service':'coastal-haven-api'}
@@ -673,6 +696,154 @@ async def ai_chat(payload:AIChatIn):
         return {'reply':resp.choices[0].message.content}
     except Exception as e:
         return {'reply':"Sorry, I'm having a wave of trouble right now. Please use the contact form and we'll reply shortly!"}
+
+# ── PMS ─────────────────────────────────────────────────────────────────────
+_pms_last_synced: str | None = None
+
+def _consolidate_daily_blocks(events: list[dict]) -> list[dict]:
+    """Merge consecutive 1-day blocks (common VRBO iCal format) into multi-night stays."""
+    if not events: return events
+    # Sort by checkin
+    evs = sorted([e for e in events if e.get('checkin') and e.get('checkout')], key=lambda e: e['checkin'])
+    merged: list[dict] = []
+    for ev in evs:
+        try:
+            ci = date.fromisoformat(ev['checkin']); co = date.fromisoformat(ev['checkout'])
+        except: merged.append(ev); continue
+        if (co - ci).days != 1:  # not a daily block — keep as-is
+            merged.append(ev); continue
+        if merged:
+            last = merged[-1]
+            try: last_co = date.fromisoformat(last['checkout'])
+            except: merged.append(ev); continue
+            # If this block starts where the last ended, extend it
+            if last_co == ci:
+                last['checkout'] = ev['checkout']
+                last['uid'] = last['uid']  # keep original uid of the merged block
+                if not last.get('raw_description') and ev.get('raw_description'):
+                    last['raw_description'] = ev['raw_description']
+                continue
+        merged.append(dict(ev))
+    return merged
+
+async def _do_pms_sync(db: Session) -> int:
+    global _pms_last_synced
+    platforms = [
+        ('airbnb', settings.airbnb_ical_url),
+        ('vrbo',   settings.vrbo_ical_url),
+        ('booking',settings.booking_ical_url),
+    ]
+    total_new = 0
+    today = date.today()
+    for platform, url in platforms:
+        if not url: continue
+        raw_events = await sync_platform_ical(platform, url)
+        events = _consolidate_daily_blocks(raw_events)
+        for ev in events:
+            uid = ev.get('uid')
+            if not uid: continue
+            scoped = f'{platform}:{uid}'
+            ci, co = ev.get('checkin',''), ev.get('checkout','')
+            if not ci or not co: continue
+            try:
+                if date.fromisoformat(co) < today: continue
+            except: continue
+            name = _extract_guest_name(ev.get('summary',''), ev.get('raw_description',''))
+            existing = db.query(IcalReservation).filter(IcalReservation.uid==scoped).first()
+            if existing:
+                existing.checkin=ci; existing.checkout=co; existing.guest_name=name
+                existing.summary=ev.get('summary',''); existing.raw_description=ev.get('raw_description','')
+                existing.synced_at=datetime.utcnow()
+            else:
+                db.add(IcalReservation(uid=scoped,platform=platform,checkin=ci,checkout=co,
+                    guest_name=name,summary=ev.get('summary',''),raw_description=ev.get('raw_description','')))
+                total_new+=1
+        db.commit()
+    _pms_last_synced = datetime.utcnow().isoformat()
+    if total_new>0 and settings.cleaner_email:
+        try:
+            from email_service import _send
+            _send(settings.cleaner_email,
+                f'Coastal Haven: {total_new} new reservation{"s" if total_new>1 else ""}',
+                f'<p>{total_new} new reservation(s) added. <a href="{settings.frontend_url}/cleaner">View in cleaner portal</a>.</p>',
+                f'{total_new} new reservation(s). Visit {settings.frontend_url}/cleaner')
+        except: pass
+    return total_new
+
+@app.post('/api/pms/sync')
+async def pms_sync(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    n=await _do_pms_sync(db)
+    return {'ok':True,'new_reservations':n,'synced_at':_pms_last_synced}
+
+@app.get('/api/pms/reservations')
+def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    today_s=date.today().isoformat()
+    ota=db.query(IcalReservation).filter(IcalReservation.checkout>=today_s).order_by(IcalReservation.checkin).all()
+    direct=db.query(BookingRequest).filter(BookingRequest.checkout>=today_s,BookingRequest.status.in_(['confirmed','payment_pending','pending_approval'])).order_by(BookingRequest.checkin).all()
+    base=settings.frontend_url.rstrip('/')
+    return {
+        'ota':[{'id':r.id,'uid':r.uid,'platform':r.platform,'checkin':r.checkin,'checkout':r.checkout,
+                'guest_name':r.guest_name,'summary':r.summary,'raw_description':r.raw_description,
+                'notes':r.notes,'is_new':r.is_new,'synced_at':r.synced_at.isoformat() if r.synced_at else None} for r in ota],
+        'direct':[{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,
+                   'email':b.email,'phone':b.phone,'total':b.total,'status':b.status,'created_at':b.created_at.isoformat()} for b in direct],
+        'last_synced':_pms_last_synced,
+        'calendar_url':f'{base}/api/calendar.ics?token={settings.calendar_token}',
+    }
+
+class _NotesIn(BaseModel): notes:str
+
+@app.put('/api/pms/reservations/{res_id}/notes')
+def pms_notes(res_id:int,payload:_NotesIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    r=db.get(IcalReservation,res_id)
+    if not r: raise HTTPException(404,'Not found')
+    r.notes=payload.notes; db.commit()
+    return {'ok':True}
+
+# ── Cleaner auth ─────────────────────────────────────────────────────────────
+class _CleanerLogin(BaseModel): username:str; password:str
+
+def _make_cleaner_token():
+    return jwt.encode({'sub':'cleaner','exp':datetime.now(timezone.utc)+timedelta(days=7)},settings.jwt_secret,algorithm='HS256')
+
+def _require_cleaner(authorization:str|None=Header(default=None)):
+    if not authorization or not authorization.startswith('Bearer '): raise HTTPException(401,'Cleaner login required')
+    try:
+        p=jwt.decode(authorization.split(' ',1)[1],settings.jwt_secret,algorithms=['HS256'])
+        if p.get('sub')!='cleaner': raise HTTPException(401,'Not a cleaner token')
+    except JWTError: raise HTTPException(401,'Invalid or expired token')
+
+@app.post('/api/cleaner/login')
+def cleaner_login(payload:_CleanerLogin):
+    if payload.username!=settings.cleaner_username or payload.password!=settings.cleaner_password:
+        raise HTTPException(401,'Invalid credentials')
+    return {'token':_make_cleaner_token()}
+
+@app.get('/api/cleaner/reservations')
+def cleaner_reservations(_:None=Depends(_require_cleaner),db:Session=Depends(get_db)):
+    today_s=date.today().isoformat()
+    cutoff=(datetime.utcnow()-timedelta(hours=48))
+    ota=db.query(IcalReservation).filter(IcalReservation.checkout>=today_s).order_by(IcalReservation.checkin).all()
+    direct=db.query(BookingRequest).filter(BookingRequest.checkout>=today_s,BookingRequest.status.in_(['confirmed','payment_pending','pending_approval'])).order_by(BookingRequest.checkin).all()
+    result=[]
+    for r in ota:
+        try: n=(date.fromisoformat(r.checkout)-date.fromisoformat(r.checkin)).days
+        except: n=0
+        result.append({'key':f'ota-{r.id}','platform':r.platform,'checkin':r.checkin,'checkout':r.checkout,
+                       'guest_name':r.guest_name or 'Guest','nights':n,'is_new':r.is_new})
+    for b in direct:
+        try: n=(date.fromisoformat(b.checkout)-date.fromisoformat(b.checkin)).days
+        except: n=0
+        is_new=(b.created_at>cutoff)
+        result.append({'key':f'direct-{b.id}','platform':'direct','checkin':b.checkin,'checkout':b.checkout,
+                       'guest_name':b.guest_name or 'Guest','nights':n,'is_new':is_new})
+    result.sort(key=lambda x:x['checkin'])
+    return result
+
+@app.post('/api/cleaner/seen')
+def cleaner_seen(_:None=Depends(_require_cleaner),db:Session=Depends(get_db)):
+    db.query(IcalReservation).filter(IcalReservation.is_new==True).update({'is_new':False})
+    db.commit(); return {'ok':True}
 
 # Serve React SPA in production
 from pathlib import Path as _Path

@@ -20,7 +20,12 @@ class Settings(BaseSettings):
     openai_api_key:str=''
     aviationstack_api_key:str=''
     airbnb_ical_url:str=''
+    vrbo_ical_url:str=''
+    booking_ical_url:str=''
     calendar_token:str='coastal-haven-cal-feed'
+    cleaner_username:str='cleaner'
+    cleaner_password:str='cleaner-change-me'
+    cleaner_email:str=''
     model_config=SettingsConfigDict(env_file=str(_ENV),extra='ignore')
 
     @property

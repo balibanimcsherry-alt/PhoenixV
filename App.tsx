@@ -27,6 +27,7 @@ import NotFound from './NotFound';
 import BackgroundMusic from './BackgroundMusic';
 import OceanAvatar from './OceanAvatar';
 import GeoGate from './GeoGate';
+import CleanerDashboard from './CleanerDashboard';
 import { trackPageView } from './analytics';
 
 function RouteTracker() {
@@ -71,6 +72,7 @@ export default function App() {
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="/games" element={<Games />} />
+      <Route path="/cleaner" element={<CleanerDashboard />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </>;

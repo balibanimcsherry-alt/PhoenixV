@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PMSTab } from './PMS';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -90,7 +91,7 @@ export default function Admin() {
   const avgBooking = confirmedBookings.length ? totalRevenue / confirmedBookings.length : 0;
   const convRate = analytics?.unique_sessions ? ((analytics.funnel?.find((f: any) => f.step === 'Booking Confirmed')?.count || 0) / analytics.unique_sessions * 100).toFixed(1) : '0.0';
 
-  const tabs = ['overview', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'settings'];
+  const tabs = ['overview', 'pms', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'settings'];
 
   return (
     <main className="admin-page">
@@ -99,7 +100,7 @@ export default function Admin() {
         <h3>Owner Dashboard</h3>
         {tabs.map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? 'rgba(255,255,255,.15)' : undefined }}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'pms' ? 'PMS' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
         <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); }} style={{ marginTop: 'auto', opacity: 0.6 }}>
@@ -151,6 +152,9 @@ export default function Admin() {
             </SectionCard>
           </>}
         </>}
+
+        {/* ── PMS ── */}
+        {tab === 'pms' && <PMSTab token={token} />}
 
         {/* ── ANALYTICS ── */}
         {tab === 'analytics' && <>

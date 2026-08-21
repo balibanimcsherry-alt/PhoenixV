@@ -57,6 +57,77 @@ async def airbnb_available(checkin: str, checkout: str) -> tuple[bool, str]:
     return True, 'Airbnb calendar'
 
 
+def _parse_ical_events(ical_text: str) -> list[dict]:
+    """Parse VEVENT blocks from iCal text with RFC 5545 line unfolding."""
+    lines: list[str] = []
+    for line in ical_text.splitlines():
+        if line.startswith((' ', '\t')) and lines:
+            lines[-1] += line[1:]
+        else:
+            lines.append(line)
+    events: list[dict] = []
+    in_event = False
+    current: dict = {}
+    for line in lines:
+        raw = line.rstrip('\r')
+        if raw == 'BEGIN:VEVENT':
+            in_event = True; current = {}
+        elif raw == 'END:VEVENT':
+            if in_event and current.get('checkin') and current.get('checkout'):
+                events.append(current)
+            in_event = False
+        elif in_event and ':' in raw:
+            key_part, _, val = raw.partition(':')
+            key = key_part.split(';')[0].upper()
+            val = val.replace('\\n', '\n').replace('\\N', '\n').replace('\\,', ',').replace('\\;', ';').replace('\\\\', '\\')
+            if key == 'DTSTART':
+                try: current['checkin'] = str(_parse_ical_date(val.strip()))
+                except: pass
+            elif key == 'DTEND':
+                try: current['checkout'] = str(_parse_ical_date(val.strip()))
+                except: pass
+            elif key == 'UID':
+                current['uid'] = val.strip()
+            elif key == 'SUMMARY':
+                current['summary'] = val.strip()
+            elif key == 'DESCRIPTION':
+                current['raw_description'] = val.strip()
+    return events
+
+
+def _extract_guest_name(summary: str, description: str) -> str:
+    """Extract guest name from iCal summary or Airbnb-style description fields."""
+    if ' - ' in summary:
+        candidate = summary.rsplit(' - ', 1)[-1].strip()
+        if candidate and 'not available' not in candidate.lower() and len(candidate) < 80:
+            return candidate
+    if description:
+        first = last = ''
+        for ln in description.split('\n'):
+            ln = ln.strip()
+            if ln.startswith('FIRST NAME:'):
+                first = ln[11:].strip()
+            elif ln.startswith('LAST NAME:'):
+                last = ln[10:].strip()
+        if first or last:
+            return f'{first} {last}'.strip()
+    return ''
+
+
+async def sync_platform_ical(platform: str, url: str) -> list[dict]:
+    """Fetch and parse iCal from an OTA URL. Returns list of event dicts."""
+    if not url:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=20) as c:
+            r = await c.get(url, follow_redirects=True)
+        if r.status_code != 200:
+            return []
+        return _parse_ical_events(r.text)
+    except Exception:
+        return []
+
+
 async def pricelabs_nightly_rate(checkin: str, checkout: str) -> tuple[float, str]:
     if not settings.pricelabs_api_key or not settings.pricelabs_listing_id:
         month = date.fromisoformat(checkin).month
