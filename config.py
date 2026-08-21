@@ -23,9 +23,9 @@ class Settings(BaseSettings):
     vrbo_ical_url:str=''
     booking_ical_url:str=''
     calendar_token:str='coastal-haven-cal-feed'
-    cleaner_username:str='cleaner'
-    cleaner_password:str='cleaner-change-me'
-    cleaner_email:str=''
+    caretaker_username:str='caretaker'
+    caretaker_password:str='caretaker-change-me'
+    caretaker_email:str=''
     model_config=SettingsConfigDict(env_file=str(_ENV),extra='ignore')
 
     @property

@@ -40,7 +40,7 @@ export function PropertyTab({ token }:{ token:string }) {
   return (
     <div>
       <h1>Property Info</h1>
-      <p className="sub">Stored here for reference — share with cleaners, guests, and house manuals.</p>
+      <p className="sub">Stored here for reference — share with caretakers, guests, and house manuals.</p>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
         {/* Quick access card */}

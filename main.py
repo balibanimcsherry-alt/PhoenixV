@@ -765,13 +765,13 @@ async def _do_pms_sync(db: Session) -> int:
                 total_new+=1
         db.commit()
     _pms_last_synced = datetime.utcnow().isoformat()
-    if total_new>0 and settings.cleaner_email:
+    if total_new>0 and settings.caretaker_email:
         try:
             from email_service import _send
-            _send(settings.cleaner_email,
+            _send(settings.caretaker_email,
                 f'Coastal Haven: {total_new} new reservation{"s" if total_new>1 else ""}',
-                f'<p>{total_new} new reservation(s) added. <a href="{settings.frontend_url}/cleaner">View in cleaner portal</a>.</p>',
-                f'{total_new} new reservation(s). Visit {settings.frontend_url}/cleaner')
+                f'<p>{total_new} new reservation(s) added. <a href="{settings.frontend_url}/caretaker">View in caretaker portal</a>.</p>',
+                f'{total_new} new reservation(s). Visit {settings.frontend_url}/caretaker')
         except: pass
     return total_new
 
@@ -810,27 +810,27 @@ def pms_notes(res_id:int,payload:_NotesIn,_:None=Depends(require_admin),db:Sessi
     r.notes=payload.notes; db.commit()
     return {'ok':True}
 
-# ── Cleaner auth ─────────────────────────────────────────────────────────────
-class _CleanerLogin(BaseModel): username:str; password:str
+# ── Caretaker auth ───────────────────────────────────────────────────────────
+class _CaretakerLogin(BaseModel): username:str; password:str
 
-def _make_cleaner_token():
-    return jwt.encode({'sub':'cleaner','exp':datetime.now(timezone.utc)+timedelta(days=7)},settings.jwt_secret,algorithm='HS256')
+def _make_caretaker_token():
+    return jwt.encode({'sub':'caretaker','exp':datetime.now(timezone.utc)+timedelta(days=7)},settings.jwt_secret,algorithm='HS256')
 
-def _require_cleaner(authorization:str|None=Header(default=None)):
-    if not authorization or not authorization.startswith('Bearer '): raise HTTPException(401,'Cleaner login required')
+def _require_caretaker(authorization:str|None=Header(default=None)):
+    if not authorization or not authorization.startswith('Bearer '): raise HTTPException(401,'Caretaker login required')
     try:
         p=jwt.decode(authorization.split(' ',1)[1],settings.jwt_secret,algorithms=['HS256'])
-        if p.get('sub')!='cleaner': raise HTTPException(401,'Not a cleaner token')
+        if p.get('sub')!='caretaker': raise HTTPException(401,'Not a caretaker token')
     except JWTError: raise HTTPException(401,'Invalid or expired token')
 
-@app.post('/api/cleaner/login')
-def cleaner_login(payload:_CleanerLogin):
-    if payload.username!=settings.cleaner_username or payload.password!=settings.cleaner_password:
+@app.post('/api/caretaker/login')
+def caretaker_login(payload:_CaretakerLogin):
+    if payload.username!=settings.caretaker_username or payload.password!=settings.caretaker_password:
         raise HTTPException(401,'Invalid credentials')
-    return {'token':_make_cleaner_token()}
+    return {'token':_make_caretaker_token()}
 
-@app.get('/api/cleaner/reservations')
-def cleaner_reservations(_:None=Depends(_require_cleaner),db:Session=Depends(get_db)):
+@app.get('/api/caretaker/reservations')
+def caretaker_reservations(_:None=Depends(_require_caretaker),db:Session=Depends(get_db)):
     today_s=date.today().isoformat()
     cutoff=(datetime.utcnow()-timedelta(hours=48))
     ota=db.query(IcalReservation).filter(IcalReservation.checkout>=today_s).order_by(IcalReservation.checkin).all()
@@ -850,8 +850,8 @@ def cleaner_reservations(_:None=Depends(_require_cleaner),db:Session=Depends(get
     result.sort(key=lambda x:x['checkin'])
     return result
 
-@app.post('/api/cleaner/seen')
-def cleaner_seen(_:None=Depends(_require_cleaner),db:Session=Depends(get_db)):
+@app.post('/api/caretaker/seen')
+def caretaker_seen(_:None=Depends(_require_caretaker),db:Session=Depends(get_db)):
     db.query(IcalReservation).filter(IcalReservation.is_new==True).update({'is_new':False})
     db.commit(); return {'ok':True}
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from './api';
 
-interface CleanerRes {
+interface CaretakerRes {
   key: string; platform: string;
   checkin: string; checkout: string;
   guest_name: string; nights: number; is_new: boolean;
@@ -25,7 +25,7 @@ function Badge({ platform }: { platform: string }) {
   );
 }
 
-function ResRow({ r }: { r: CleanerRes }) {
+function ResRow({ r }: { r: CaretakerRes }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #f0f0f0' }}>
       <div style={{ width: 4, height: 44, background: PC[r.platform], borderRadius: 4, flexShrink: 0 }} />
@@ -47,21 +47,21 @@ function ResRow({ r }: { r: CleanerRes }) {
   );
 }
 
-export default function CleanerDashboard() {
-  const [token, setToken] = useState(localStorage.getItem('cleanerToken') || '');
+export default function CaretakerDashboard() {
+  const [token, setToken] = useState(localStorage.getItem('caretakerToken') || '');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [reservations, setReservations] = useState<CleanerRes[]>([]);
+  const [reservations, setReservations] = useState<CaretakerRes[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const login = async () => {
     setError(''); setLoading(true);
     try {
-      const r = await api<{ token: string }>('/api/cleaner/login', {
+      const r = await api<{ token: string }>('/api/caretaker/login', {
         method: 'POST', body: JSON.stringify({ username, password }),
       });
-      localStorage.setItem('cleanerToken', r.token);
+      localStorage.setItem('caretakerToken', r.token);
       setToken(r.token);
     } catch {
       setError('Invalid username or password.');
@@ -71,14 +71,13 @@ export default function CleanerDashboard() {
 
   const load = async (t = token) => {
     try {
-      const r = await api<CleanerRes[]>('/api/cleaner/reservations', {
+      const r = await api<CaretakerRes[]>('/api/caretaker/reservations', {
         headers: { Authorization: `Bearer ${t}` },
       });
       setReservations(r);
-      // Mark new ones as seen
-      await api('/api/cleaner/seen', { method: 'POST', headers: { Authorization: `Bearer ${t}` } });
+      await api('/api/caretaker/seen', { method: 'POST', headers: { Authorization: `Bearer ${t}` } });
     } catch {
-      localStorage.removeItem('cleanerToken');
+      localStorage.removeItem('caretakerToken');
       setToken('');
     }
   };
@@ -89,8 +88,8 @@ export default function CleanerDashboard() {
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#f5f9fa,#e8f4f5)', padding: 20 }}>
       <div style={{ background: '#fff', borderRadius: 20, padding: 40, boxShadow: '0 8px 40px rgba(0,0,0,.12)', width: '100%', maxWidth: 340 }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🧹</div>
-          <h2 style={{ margin: 0, color: '#0d5f6b', fontSize: 22 }}>Cleaner Portal</h2>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🏠</div>
+          <h2 style={{ margin: 0, color: '#0d5f6b', fontSize: 22 }}>Caretaker Portal</h2>
           <p style={{ margin: '6px 0 0', color: '#888', fontSize: 13 }}>Coastal Haven · Phoenix V Unit 1408</p>
         </div>
         <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username"
@@ -110,29 +109,27 @@ export default function CleanerDashboard() {
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
-  const todayOut = reservations.filter(r => r.checkout === today);
-  const todayIn  = reservations.filter(r => r.checkin === today);
+  const todayOut  = reservations.filter(r => r.checkout === today);
+  const todayIn   = reservations.filter(r => r.checkin === today);
   const tomorrowIn = reservations.filter(r => r.checkin === tomorrow);
-  const upcoming = reservations.filter(r => r.checkin > today && r.checkin !== tomorrow);
-  const newOnes  = reservations.filter(r => r.is_new);
+  const upcoming  = reservations.filter(r => r.checkin > today && r.checkin !== tomorrow);
+  const newOnes   = reservations.filter(r => r.is_new);
 
   return (
     <main style={{ minHeight: '100vh', background: '#f5f9fa', padding: '24px 16px' }}>
       <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
-            <h1 style={{ margin: 0, color: '#0d5f6b', fontSize: 22 }}>🧹 Cleaner Portal</h1>
+            <h1 style={{ margin: 0, color: '#0d5f6b', fontSize: 22 }}>🏠 Caretaker Portal</h1>
             <p style={{ margin: '4px 0 0', color: '#888', fontSize: 13 }}>Phoenix V Unit 1408 · Orange Beach, AL</p>
           </div>
-          <button onClick={() => { localStorage.removeItem('cleanerToken'); setToken(''); }}
+          <button onClick={() => { localStorage.removeItem('caretakerToken'); setToken(''); }}
             style={{ background: 'none', border: '1px solid #ddd', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', color: '#888', fontSize: 13 }}>
             Sign out
           </button>
         </div>
 
-        {/* New reservations alert */}
         {newOnes.length > 0 && (
           <div style={{ background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 12, padding: 16, marginBottom: 20 }}>
             <strong style={{ color: '#856404' }}>🔔 {newOnes.length} new reservation{newOnes.length !== 1 ? 's' : ''} added</strong>
@@ -144,7 +141,6 @@ export default function CleanerDashboard() {
           </div>
         )}
 
-        {/* Today check-outs */}
         {todayOut.length > 0 && (
           <div style={{ background: '#fff', border: '2px solid #ffc107', borderRadius: 14, padding: 20, marginBottom: 16 }}>
             <h2 style={{ margin: '0 0 14px', fontSize: 17, color: '#856404' }}>🧹 Clean today — guests checking out</h2>
@@ -155,7 +151,6 @@ export default function CleanerDashboard() {
           </div>
         )}
 
-        {/* Today check-ins */}
         {todayIn.length > 0 && (
           <div style={{ background: '#fff', border: '2px solid #28a745', borderRadius: 14, padding: 20, marginBottom: 16 }}>
             <h2 style={{ margin: '0 0 14px', fontSize: 17, color: '#155724' }}>🏠 Guests arriving today</h2>
@@ -166,7 +161,6 @@ export default function CleanerDashboard() {
           </div>
         )}
 
-        {/* No tasks today */}
         {todayOut.length === 0 && todayIn.length === 0 && (
           <div style={{ background: '#fff', border: '1px solid #e0e8e6', borderRadius: 14, padding: 28, marginBottom: 16, textAlign: 'center' }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
@@ -175,7 +169,6 @@ export default function CleanerDashboard() {
           </div>
         )}
 
-        {/* Tomorrow's arrivals */}
         {tomorrowIn.length > 0 && (
           <div style={{ background: '#fff', border: '1px solid #e8efed', borderRadius: 14, padding: 20, marginBottom: 16 }}>
             <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>📅 Arriving tomorrow</h2>
@@ -183,7 +176,6 @@ export default function CleanerDashboard() {
           </div>
         )}
 
-        {/* All upcoming */}
         {upcoming.length > 0 && (
           <div style={{ background: '#fff', border: '1px solid #e8efed', borderRadius: 14, padding: 20 }}>
             <h2 style={{ margin: '0 0 12px', fontSize: 16, color: '#333' }}>📋 Upcoming reservations</h2>
