@@ -468,6 +468,11 @@ def admin_bookings(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     rows=db.query(BookingRequest).order_by(BookingRequest.created_at.desc()).all()
     return [{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'customer_id':b.customer_id,'total':b.total,'status':b.status,'created_at':b.created_at.isoformat()} for b in rows]
 
+@app.get('/api/admin/customers')
+def admin_customers(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    rows=db.query(Customer).order_by(Customer.created_at.desc()).all()
+    return [{'id':c.id,'name':c.name,'email':c.email,'phone':c.phone,'address':c.address,'created_at':c.created_at.isoformat()} for c in rows]
+
 @app.get('/api/admin/analytics')
 def admin_analytics(_:None=Depends(require_admin),days:int=30):
     return _analytics.aggregate(days)

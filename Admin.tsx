@@ -43,6 +43,7 @@ export default function Admin() {
   const [saved, setSaved] = useState('');
   const [chats, setChats] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsDays, setAnalyticsDays] = useState(30);
 
@@ -50,13 +51,14 @@ export default function Admin() {
 
   const load = async (t = token) => {
     try {
-      const [s, c, b, a] = await Promise.all([
+      const [s, c, b, a, cu] = await Promise.all([
         api<Settings>('/api/admin/settings', { headers: headers(t) }),
         api<any[]>('/api/admin/chat', { headers: headers(t) }),
         api<any[]>('/api/admin/bookings', { headers: headers(t) }),
         api<any>(`/api/admin/analytics?days=${analyticsDays}`, { headers: headers(t) }),
+        api<any[]>('/api/admin/customers', { headers: headers(t) }),
       ]);
-      setSettings(s); setChats(c); setBookings(b); setAnalytics(a);
+      setSettings(s); setChats(c); setBookings(b); setAnalytics(a); setCustomers(cu);
     } catch { }
   };
 
@@ -362,56 +364,57 @@ export default function Admin() {
 
         {/* ── CUSTOMERS ── */}
         {tab === 'customers' && <>
-          <h1>Customers &amp; Visitors</h1>
-          {analytics && <>
-            <div className="kpi-grid">
-              {kpi('Unique Sessions', analytics.unique_sessions)}
-              {kpi('Countries', analytics.countries.length)}
-              {kpi('Top Country', analytics.countries[0]?.name || '–')}
-              {kpi('Top City', analytics.cities[0]?.name || '–')}
-            </div>
+          <h1>Customers</h1>
+          <div className="kpi-grid">
+            {kpi('Registered accounts', customers.length)}
+            {kpi('Direct bookings', bookings.filter(b => b.guest_name || b.email).length)}
+            {kpi('Unique visitors', analytics?.unique_sessions ?? '–', `last ${analyticsDays} days`)}
+            {kpi('Top country', analytics?.countries?.[0]?.name || '–')}
+          </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-              <SectionCard title="Visitors by country">
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={analytics.countries.slice(0, 10)} layout="vertical">
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#0d5f6b" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </SectionCard>
-
-              <SectionCard title="Visitors by city">
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={analytics.cities.slice(0, 8)} layout="vertical">
-                    <XAxis type="number" tick={{ fontSize: 11 }} />
-                    <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#6baeb6" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </SectionCard>
-            </div>
-          </>}
-
-          <SectionCard title="Guest bookings (with contact info)">
+          {/* Registered accounts */}
+          <SectionCard title="Registered accounts">
             <table className="admin-table">
-              <thead><tr><th>Name</th><th>Email</th><th>Dates</th><th>Guests</th><th>Total</th><th>Booked</th></tr></thead>
+              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Joined</th></tr></thead>
               <tbody>
-                {bookings.filter(b => b.guest_name || b.email).map(b => (
-                  <tr key={b.id}>
-                    <td>{b.guest_name || '—'}</td>
-                    <td><a href={`mailto:${b.email}`} style={{ color: 'var(--teal)' }}>{b.email}</a></td>
-                    <td style={{ fontSize: 12 }}>{b.checkin} → {b.checkout}</td>
-                    <td>{b.guests}</td>
-                    <td>${b.total.toFixed(2)}</td>
-                    <td style={{ fontSize: 11 }}>{b.created_at.slice(0, 10)}</td>
+                {customers.length === 0 && (
+                  <tr><td colSpan={5} style={{ color: '#aaa', textAlign: 'center' }}>No registered accounts yet.</td></tr>
+                )}
+                {customers.map(c => (
+                  <tr key={c.id}>
+                    <td><strong>{c.name || '—'}</strong></td>
+                    <td><a href={`mailto:${c.email}`} style={{ color: 'var(--teal)' }}>{c.email}</a></td>
+                    <td>{c.phone || '—'}</td>
+                    <td style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.address || '—'}</td>
+                    <td style={{ fontSize: 11 }}>{c.created_at.slice(0, 10)}</td>
                   </tr>
                 ))}
-                {bookings.filter(b => b.guest_name || b.email).length === 0 && (
-                  <tr><td colSpan={6} style={{ color: '#aaa', textAlign: 'center' }}>No guest details captured yet.</td></tr>
+              </tbody>
+            </table>
+          </SectionCard>
+
+          {/* All bookings with full contact */}
+          <SectionCard title="All direct bookings — full guest details">
+            <table className="admin-table">
+              <thead><tr><th>Ref</th><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Total</th><th>Status</th><th>Booked</th></tr></thead>
+              <tbody>
+                {bookings.filter(b => b.guest_name || b.email || b.phone).map(b => (
+                  <tr key={b.id}>
+                    <td style={{ fontSize: 12 }}>#CHV-{String(b.id).padStart(4,'0')}</td>
+                    <td><strong>{b.guest_name || '—'}</strong></td>
+                    <td style={{ fontSize: 12 }}><a href={`mailto:${b.email}`} style={{ color: 'var(--teal)' }}>{b.email || '—'}</a></td>
+                    <td style={{ fontSize: 12 }}>{b.phone || '—'}</td>
+                    <td style={{ fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.address || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{b.checkin}</td>
+                    <td style={{ fontSize: 12 }}>{b.checkout}</td>
+                    <td>{b.guests}</td>
+                    <td><strong>${b.total.toFixed(0)}</strong></td>
+                    <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
+                    <td style={{ fontSize: 11 }}>{b.created_at.slice(0,10)}</td>
+                  </tr>
+                ))}
+                {bookings.filter(b => b.guest_name || b.email || b.phone).length === 0 && (
+                  <tr><td colSpan={11} style={{ color: '#aaa', textAlign: 'center' }}>No direct bookings with guest details yet.</td></tr>
                 )}
               </tbody>
             </table>
