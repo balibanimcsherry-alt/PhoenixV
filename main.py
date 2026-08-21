@@ -461,15 +461,39 @@ def update_settings(payload:SettingsSchema,_:None=Depends(require_admin),db:Sess
 
 @app.post('/api/admin/test-email')
 def admin_test_email(_:None=Depends(require_admin)):
-    from email_service import _send
-    ok=_send(
-        settings.smtp_user,
-        'Test email from Coastal Haven ✓',
-        '<div style="font-family:Arial,sans-serif;padding:32px;max-width:480px"><h2 style="color:#0d5f6b">Email is working! ✓</h2><p>Your SMTP settings are correctly configured for Coastal Haven.</p><p style="color:#888;font-size:13px">smtp: '+settings.smtp_host+':'+str(settings.smtp_port)+'</p></div>',
-        'Email is working! Your SMTP settings are correctly configured for Coastal Haven.'
-    )
-    if ok: return {'ok':True,'message':f'Test email sent to {settings.smtp_user}'}
-    raise HTTPException(500,'Failed to send — check SMTP_USER, SMTP_PASSWORD, and SMTP_PORT on Render')
+    import smtplib, ssl as _ssl
+    # Show current config (no password) for debugging
+    cfg = {
+        'smtp_host': settings.smtp_host,
+        'smtp_port': settings.smtp_port,
+        'smtp_user': settings.smtp_user,
+        'smtp_password_set': bool(settings.smtp_password),
+        'from_email': settings.from_email,
+    }
+    if not settings.smtp_user or not settings.smtp_password:
+        raise HTTPException(400, f'SMTP not configured. Current config: {cfg}')
+    try:
+        if settings.smtp_port == 465:
+            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, context=_ssl.create_default_context()) as s:
+                s.login(settings.smtp_user, settings.smtp_password)
+                from email.mime.text import MIMEText
+                msg = MIMEText(f'Email working! Config: {cfg}', 'plain')
+                msg['Subject'] = 'Test email from Coastal Haven ✓'
+                msg['From'] = settings.smtp_user
+                msg['To'] = settings.smtp_user
+                s.sendmail(settings.smtp_user, settings.smtp_user, msg.as_string())
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as s:
+                s.ehlo(); s.starttls(); s.login(settings.smtp_user, settings.smtp_password)
+                from email.mime.text import MIMEText
+                msg = MIMEText(f'Email working! Config: {cfg}', 'plain')
+                msg['Subject'] = 'Test email from Coastal Haven ✓'
+                msg['From'] = settings.smtp_user
+                msg['To'] = settings.smtp_user
+                s.sendmail(settings.smtp_user, settings.smtp_user, msg.as_string())
+        return {'ok': True, 'message': f'Sent to {settings.smtp_user}', 'config': cfg}
+    except Exception as e:
+        raise HTTPException(500, f'SMTP error: {type(e).__name__}: {e} | Config: {cfg}')
 
 @app.get('/api/admin/chat')
 def admin_chat(_:None=Depends(require_admin),db:Session=Depends(get_db)):
