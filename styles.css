@@ -10,6 +10,226 @@
 .req{color:#d9534f;font-size:12px}.checkbox-row{display:flex!important;flex-direction:row!important;align-items:center;gap:10px;margin:10px 0}.checkbox-row input{width:auto;margin:0}.link-btn{background:none;border:0;color:var(--teal);font-weight:600;cursor:pointer;padding:0;font-size:12px}.link-btn:hover{text-decoration:underline}.account-bar{display:flex;align-items:center;gap:10px;flex-shrink:0}.account-greeting{font-weight:600;font-size:14px;color:var(--teal)}.auth-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center}.auth-modal{background:white;border-radius:20px;padding:32px;width:min(420px,92vw);position:relative;display:flex;flex-direction:column;gap:12px}.auth-modal h2{margin:0 0 4px}.auth-modal-tabs{display:flex;gap:4px;background:#f0f4f3;border-radius:10px;padding:4px;margin-bottom:4px}.auth-modal-tabs button{flex:1;background:transparent;border:0;border-radius:7px;padding:9px;font-weight:600;font-size:14px;cursor:pointer;color:var(--muted)}.auth-modal-tabs button.active{background:white;color:var(--teal);box-shadow:0 2px 8px rgba(0,0,0,.08)}.auth-modal-close{position:absolute;top:14px;right:16px;background:none;border:0;font-size:20px;cursor:pointer;color:var(--muted)}.auth-modal label{display:block;font-weight:600;font-size:13px}.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin:20px 0 28px}.kpi-card{background:white;border-radius:14px;padding:20px;box-shadow:0 4px 16px rgba(20,60,62,.07)}.kpi-value{font-family:'Libre Baskerville',serif;font-size:28px;font-weight:700;color:var(--teal)}.kpi-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-top:4px}.kpi-sub{font-size:11px;color:#aaa;margin-top:2px}.admin-table{width:100%;border-collapse:collapse;font-size:13px}.admin-table th{text-align:left;padding:9px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);border-bottom:2px solid var(--line)}.admin-table td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}.admin-table tr:last-child td{border:0}.admin-table tr:hover td{background:#f9fbfa}.status-badge{border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;white-space:nowrap}.status-confirmed{background:#e5f5ed;color:#21734b}.status-payment-pending{background:#fff4e0;color:#9a6200}.status-pending-approval{background:#fdecea;color:#a74840}.event-badge{border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;background:#eef6f4;color:var(--teal)}.event-badge.event-page_view{background:#f0f4ff;color:#3b5bdb}.event-badge.event-quote_requested{background:#fff4e0;color:#9a6200}.event-badge.event-checkout_started{background:#fdecea;color:#a74840}.event-badge.event-booking_confirmed{background:#e5f5ed;color:#21734b}.ai-chat-panel{position:fixed;z-index:79;right:22px;bottom:82px;width:370px;max-height:560px;background:white;border-radius:20px;box-shadow:0 20px 60px rgba(19,52,55,.2);border:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}.chat-panel-header{background:#0d5f6b;color:white;padding:14px 18px;display:flex;align-items:center;gap:12px}.chat-panel-avatar{width:34px;height:34px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}.chat-panel-name{font-weight:700;font-size:15px}.chat-panel-sub{font-size:11px;opacity:.75;margin-top:1px}.chat-mode-tabs{margin-left:auto;display:flex;gap:4px;background:rgba(255,255,255,.15);border-radius:8px;padding:3px}.chat-mode-tabs button{background:transparent;border:0;color:rgba(255,255,255,.75);font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer}.chat-mode-tabs button.active{background:rgba(255,255,255,.25);color:white}.chat-messages{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;min-height:0}.chat-bubble{display:flex;gap:8px;align-items:flex-start}.chat-bubble.assistant{flex-direction:row}.chat-bubble.user{flex-direction:row-reverse}.chat-bubble-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#e8f4f2;color:var(--teal)}.chat-bubble.user .chat-bubble-icon{background:#f0f0f0;color:#888}.chat-bubble-text{background:#f2f8f7;border-radius:14px 14px 14px 4px;padding:10px 13px;font-size:14px;line-height:1.5;max-width:80%}.chat-bubble.user .chat-bubble-text{background:#0d5f6b;color:white;border-radius:14px 14px 4px 14px}.chat-typing{display:flex;gap:5px;align-items:center;padding:12px 14px}.chat-typing span{width:7px;height:7px;background:#aaa;border-radius:50%;animation:bounce .9s infinite}.chat-typing span:nth-child(2){animation-delay:.15s}.chat-typing span:nth-child(3){animation-delay:.3s}@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}.chat-suggestions{padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px}.chat-suggestion-pill{background:#eef6f4;border:1px solid #c8e6e3;color:var(--teal);font-size:12px;font-weight:600;border-radius:999px;padding:5px 12px;cursor:pointer;white-space:nowrap}.chat-suggestion-pill:hover{background:#d8f0ed}.chat-input-row{padding:12px;border-top:1px solid var(--line);display:flex;gap:8px}.chat-input-row input{flex:1;border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:14px}.chat-send-btn{background:var(--teal);border:0;color:white;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}.chat-send-btn:disabled{opacity:.4}.chat-contact-form{padding:14px;display:flex;flex-direction:column;gap:8px;overflow-y:auto}.chat-contact-form p{color:var(--muted);font-size:13px;margin:0}.chat-contact-form input,.chat-contact-form textarea{font-size:14px}.chat-sent{padding:40px 20px;text-align:center;color:var(--teal)}.chat-sent p{color:var(--muted);margin-top:10px}
 .confirmation-page{min-height:100vh;background:var(--sand);padding:60px 7vw;display:flex;align-items:flex-start;justify-content:center}.confirmation-card{background:white;border-radius:24px;box-shadow:0 20px 60px rgba(20,60,62,.1);padding:52px 48px;width:min(700px,100%);text-align:center}.confirmation-check{width:72px;height:72px;background:#e5f5ed;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;color:#21734b;margin:0 auto 22px;font-weight:700}.confirmation-card h1{font-size:clamp(28px,4vw,42px);margin-bottom:12px}.confirmation-sub{color:var(--muted);font-size:17px;line-height:1.7;margin-bottom:24px}.confirmation-ref{background:var(--sand);border-radius:10px;padding:12px 20px;font-size:15px;color:var(--muted);display:inline-block;margin-bottom:32px}.confirmation-ref strong{color:var(--ink);font-size:18px}.confirmation-details{text-align:left;border:1px solid var(--line);border-radius:16px;padding:28px;margin-bottom:32px}.conf-row{display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap}.conf-block{flex:1;min-width:180px}.conf-arrow{font-size:22px;color:var(--muted);flex-shrink:0}.conf-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px}.conf-value{font-family:'Libre Baskerville',serif;font-size:17px;font-weight:700;color:var(--ink)}.conf-note{font-size:13px;color:var(--muted);margin-top:3px}.conf-divider{height:1px;background:var(--line);margin:22px 0}.conf-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.conf-item{}.conf-status{color:#21734b}.conf-property .conf-value{font-size:16px}.conf-checkin-info ul{margin:8px 0 0;padding-left:20px;color:var(--muted);line-height:1.9;font-size:15px}.conf-cancel .conf-note{line-height:1.7}.confirmation-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 
+/* ══════════════════════════════════════════════════════════════════════════
+   NIGHT MODE  — Gulf Coast midnight palette
+   Applied whenever data-theme ends in "-night".
+   Uses a deep ocean midnight base, not generic grey.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Core variable overrides ─────────────────────────────────────────────── */
+[data-theme$="-night"]{
+  --ink:    #d8eae8;          /* pale seafoam white */
+  --sand:   #0e2228;          /* dark ocean section bg */
+  --cream:  #091b21;          /* deepest background */
+  --muted:  #7a9fa3;          /* muted teal-grey */
+  --line:   rgba(107,174,182,.18);
+  --teal:   #3db8c4;          /* brighter teal for dark contrast */
+  --sea:    #6dcdd6;
+  --gold:   #e8b84a;          /* warm moonlight gold */
+  --shadow: 0 18px 50px rgba(0,0,0,.6);
+}
+[data-theme="stormy-night"]{ --sand:#0c1820; --cream:#08131a; }
+[data-theme="rainy-night"]  { --sand:#0c1c24; --cream:#08161e; }
+[data-theme="snow-night"]   { --sand:#0d1c30; --cream:#091422; --teal:#4a9bd8; --sea:#6ab8e8; }
+
+/* ── Page background ─────────────────────────────────────────────────────── */
+[data-theme$="-night"] body{background:#091b21;color:var(--ink)}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+[data-theme$="-night"] .site-header{
+  background:rgba(8,25,32,.96);
+  border-bottom-color:rgba(107,174,182,.14);
+}
+[data-theme$="-night"] .nav a:not(.btn){color:var(--ink)}
+[data-theme$="-night"] .nav a:not(.btn):hover{color:var(--sea)}
+[data-theme$="-night"] .nav{background:#091b21}   /* mobile open */
+
+/* ── Booking bar ─────────────────────────────────────────────────────────── */
+[data-theme$="-night"] .booking-bar{
+  background:#112a32;color:var(--ink);
+  box-shadow:0 18px 50px rgba(0,0,0,.6);
+}
+[data-theme$="-night"] .booking-bar label{border-right-color:rgba(107,174,182,.18)}
+[data-theme$="-night"] .booking-bar input,
+[data-theme$="-night"] .booking-bar select{color:var(--ink);background:transparent}
+[data-theme$="-night"] .rdp-trigger-value{color:var(--ink)}
+[data-theme$="-night"] .rdp-trigger-label{color:var(--muted)}
+[data-theme$="-night"] .rdp-popover{
+  background:#112a32;border-color:rgba(107,174,182,.2);
+  box-shadow:0 24px 64px rgba(0,0,0,.7);
+}
+
+/* ── Trust strip ─────────────────────────────────────────────────────────── */
+[data-theme$="-night"] .trust-strip{background:rgba(255,255,255,.04)}
+[data-theme$="-night"] .trust-strip>div{background:#0f2430}
+
+/* ── Section backgrounds ─────────────────────────────────────────────────── */
+[data-theme$="-night"] .sand{background:var(--sand)}
+[data-theme$="-night"] .split-copy{background:#091b21}
+
+/* ── White cards / panels ────────────────────────────────────────────────── */
+[data-theme$="-night"] .amenity-feature-grid article,
+[data-theme$="-night"] .review-grid article,
+[data-theme$="-night"] .booking-card,
+[data-theme$="-night"] .quote-card,
+[data-theme$="-night"] .contact-form-wrap,
+[data-theme$="-night"] .contact-info-wrap,
+[data-theme$="-night"] .confirmation-card,
+[data-theme$="-night"] .admin-card,
+[data-theme$="-night"] .kpi-card,
+[data-theme$="-night"] .flight-card,
+[data-theme$="-night"] .car-card,
+[data-theme$="-night"] .blog-card,
+[data-theme$="-night"] .blog-post-cta,
+[data-theme$="-night"] .flights-form,
+[data-theme$="-night"] .flights-empty,
+[data-theme$="-night"] .game-card,
+[data-theme$="-night"] .score-board,
+[data-theme$="-night"] .faq-cta,
+[data-theme$="-night"] .reviews-note,
+[data-theme$="-night"] .guide-list-item,
+[data-theme$="-night"] .shells-intro,
+[data-theme$="-night"] .shell-card,
+[data-theme$="-night"] .shell-season-card,
+[data-theme$="-night"] .mullet-all-throws,
+[data-theme$="-night"] .auth-modal,
+[data-theme$="-night"] .address-suggestions,
+[data-theme$="-night"] .geo-card{
+  background:#112a32;
+  border-color:rgba(107,174,182,.14);
+}
+[data-theme$="-night"] .blog-card a:hover{background:#152e3a}
+
+/* ── Page-level backgrounds ──────────────────────────────────────────────── */
+[data-theme$="-night"] .booking-page,
+[data-theme$="-night"] .flights-page,
+[data-theme$="-night"] .not-found-page,
+[data-theme$="-night"] .confirmation-page,
+[data-theme$="-night"] .map-section,
+[data-theme$="-night"] .webcam-section{background:#091b21}
+[data-theme$="-night"] .page-hero-sand{background:#0e2228;color:var(--ink)}
+
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
+[data-theme$="-night"] input:not([type=checkbox]):not([type=radio]):not(.bingo-sq),
+[data-theme$="-night"] select,
+[data-theme$="-night"] textarea{
+  background:#091b21;border-color:rgba(107,174,182,.28);color:var(--ink);
+}
+[data-theme$="-night"] input::placeholder,
+[data-theme$="-night"] textarea::placeholder{color:var(--muted)}
+[data-theme$="-night"] .btn.light{
+  background:#112a32;color:var(--sea);border:1px solid rgba(107,174,182,.3);
+}
+[data-theme$="-night"] .btn.light:hover{background:#152e3a}
+
+/* ── Quote / price compare ───────────────────────────────────────────────── */
+[data-theme$="-night"] .price-compare{
+  background:linear-gradient(135deg,#112a32,#0e2030);
+  border-color:rgba(107,174,182,.18);
+}
+[data-theme$="-night"] .airbnb-col{background:#112a32;border-right-color:rgba(107,174,182,.15)}
+[data-theme$="-night"] .direct-col{background:#0e2530}
+[data-theme$="-night"] .confirmation-ref{background:#091b21}
+[data-theme$="-night"] .confirmation-details{border-color:rgba(107,174,182,.14)}
+
+/* ── Chat / ocean avatar ─────────────────────────────────────────────────── */
+[data-theme$="-night"] .ai-chat-panel,
+[data-theme$="-night"] .ocean-panel{
+  background:#112a32;border-color:rgba(107,174,182,.15);
+}
+[data-theme$="-night"] .ocean-bubble--assistant .ocean-bubble-text,
+[data-theme$="-night"] .chat-bubble-text{background:#0c2028;color:var(--ink)}
+[data-theme$="-night"] .ocean-input-row,
+[data-theme$="-night"] .chat-input-row{border-top-color:rgba(107,174,182,.14)}
+[data-theme$="-night"] .ocean-input-row input,
+[data-theme$="-night"] .chat-input-row input{
+  background:#091b21;border-color:rgba(107,174,182,.25);color:var(--ink);
+}
+[data-theme$="-night"] .ocean-pill,
+[data-theme$="-night"] .chat-suggestion-pill{
+  background:#0c2028;border-color:rgba(107,174,182,.28);
+}
+[data-theme$="-night"] .ocean-mic-btn{background:#112a32;border-color:rgba(107,174,182,.2);color:var(--muted)}
+
+/* ── Auth modal ──────────────────────────────────────────────────────────── */
+[data-theme$="-night"] .auth-modal-tabs{background:#091b21}
+[data-theme$="-night"] .auth-modal-tabs button.active{background:#112a32}
+
+/* ── FAQ / details ───────────────────────────────────────────────────────── */
+[data-theme$="-night"] .faq details,
+[data-theme$="-night"] .faq details:last-child{border-color:rgba(107,174,182,.15)}
+
+/* ── Tables (admin) ──────────────────────────────────────────────────────── */
+[data-theme$="-night"] .admin-table th{border-bottom-color:rgba(107,174,182,.18)}
+[data-theme$="-night"] .admin-table td{border-bottom-color:rgba(107,174,182,.1)}
+[data-theme$="-night"] .admin-table tr:hover td{background:#0e2530}
+
+/* ── Status badges ───────────────────────────────────────────────────────── */
+[data-theme$="-night"] .status-confirmed{background:#0a2e1a;color:#5bdc8a}
+[data-theme$="-night"] .status-payment-pending{background:#2a1e04;color:#f0b444}
+[data-theme$="-night"] .status-pending-approval{background:#2e0e0c;color:#f07070}
+
+/* ── Flights / cars ──────────────────────────────────────────────────────── */
+[data-theme$="-night"] .trip-btn,
+[data-theme$="-night"] .nearby-btn{background:#112a32;border-color:rgba(107,174,182,.2);color:var(--ink)}
+[data-theme$="-night"] .trip-btn.active,
+[data-theme$="-night"] .nearby-btn.active{background:var(--teal);color:white;border-color:var(--teal)}
+
+/* ── Games ───────────────────────────────────────────────────────────────── */
+[data-theme$="-night"] .trivia-opt{background:#112a32;border-color:rgba(107,174,182,.2)}
+[data-theme$="-night"] .trivia-opt:hover:not(:disabled){background:#152e3a;border-color:var(--teal)}
+[data-theme$="-night"] .score-row{border-bottom-color:rgba(107,174,182,.12)}
+[data-theme$="-night"] .bingo-sq{background:#112a32;border-color:rgba(107,174,182,.18);color:var(--ink)}
+[data-theme$="-night"] .bingo-tab,
+[data-theme$="-night"] .count-btn{background:#112a32;border-color:rgba(107,174,182,.2);color:var(--ink)}
+[data-theme$="-night"] .crab-track{background:linear-gradient(90deg,#0e2228,#0e2535)}
+[data-theme$="-night"] .crab-lane-bar{background:rgba(255,255,255,.08)}
+[data-theme$="-night"] .mullet-field{filter:brightness(.75)}
+[data-theme$="-night"] .mullet-meter{background:#0c2028}
+
+/* ── Address autocomplete ────────────────────────────────────────────────── */
+[data-theme$="-night"] .address-suggestions li{color:var(--ink)}
+[data-theme$="-night"] .address-suggestions li:hover,
+[data-theme$="-night"] .address-suggestions li.active{background:#0c2028}
+
+/* ── Geo gate ────────────────────────────────────────────────────────────── */
+[data-theme$="-night"] .geo-card{color:var(--ink)}
+[data-theme$="-night"] .geo-quip{background:#091b21;color:var(--ink)}
+[data-theme$="-night"] .geo-body{color:var(--muted)}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+[data-theme$="-night"] .site-footer-main{background:#050f14}
+
+/* ── Moon: bigger + more glow at night ───────────────────────────────────── */
+[data-theme$="-night"] .wt-moon{
+  width:82px;height:82px;
+  box-shadow:
+    0 0 0 8px rgba(255,248,160,.14),
+    0 0 28px 14px rgba(255,242,130,.32),
+    0 0 90px 40px rgba(255,236,100,.18),
+    0 0 200px 90px rgba(255,228,80,.10);
+}
+[data-theme$="-night"] .wt-moonbeam{
+  background:linear-gradient(180deg,transparent 5%,rgba(255,248,170,.07) 20%,rgba(255,248,150,.04) 55%,transparent 85%);
+}
+
+/* ── Stars: brighter on dark background ──────────────────────────────────── */
+[data-theme$="-night"] .wt-star{
+  box-shadow:0 0 4px 1px rgba(255,255,255,.7);
+}
+@keyframes wt-twinkle-night{
+  from{opacity:.15;transform:scale(.7)}
+  to  {opacity:1;  transform:scale(1.4)}
+}
+[data-theme$="-night"] .wt-star{animation-name:wt-twinkle-night}
+
+/* ── Ambient overlay: keep sky tint but let dark body show through ────────── */
+[data-theme$="-night"] .wt-ambient{
+  background:linear-gradient(180deg,rgba(4,10,38,.55) 0%,rgba(6,14,46,.2) 40%,transparent 75%);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+
 /* ── Weather Theme ────────────────────────────────────────────────────────── */
 .wt-overlay{position:fixed;inset:0;pointer-events:none;z-index:49;overflow:hidden}
 .wt-ambient{position:absolute;inset:0;transition:background 3s ease}
