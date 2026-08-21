@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { PMSTab } from './PMS';
 import { CalendarTab } from './CalendarTab';
+import { TasksTab } from './TasksTab';
+import { FinancialsTab } from './FinancialsTab';
+import { PricingTab } from './PricingTab';
+import { PropertyTab } from './PropertyTab';
+import { ReviewsTab } from './ReviewsTab';
+import { MessagesTab } from './MessagesTab';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -94,7 +100,7 @@ export default function Admin() {
   const avgBooking = confirmedBookings.length ? totalRevenue / confirmedBookings.length : 0;
   const convRate = analytics?.unique_sessions ? ((analytics.funnel?.find((f: any) => f.step === 'Booking Confirmed')?.count || 0) / analytics.unique_sessions * 100).toFixed(1) : '0.0';
 
-  const tabs = ['overview', 'calendar', 'pms', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'settings'];
+  const tabs = ['overview', 'calendar', 'pms', 'tasks', 'financials', 'pricing', 'property', 'reviews', 'messages', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'settings'];
 
   return (
     <main className="admin-page">
@@ -103,7 +109,7 @@ export default function Admin() {
         <h3>Owner Dashboard</h3>
         {tabs.map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? 'rgba(255,255,255,.15)' : undefined }}>
-            {t === 'pms' ? 'PMS' : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1)}
           </button>
         ))}
         <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); }} style={{ marginTop: 'auto', opacity: 0.6 }}>
@@ -161,6 +167,24 @@ export default function Admin() {
 
         {/* ── PMS ── */}
         {tab === 'pms' && <PMSTab token={token} />}
+
+        {/* ── TASKS ── */}
+        {tab === 'tasks' && <TasksTab token={token} />}
+
+        {/* ── FINANCIALS ── */}
+        {tab === 'financials' && <FinancialsTab token={token} />}
+
+        {/* ── PRICING ── */}
+        {tab === 'pricing' && <PricingTab token={token} />}
+
+        {/* ── PROPERTY ── */}
+        {tab === 'property' && <PropertyTab token={token} />}
+
+        {/* ── REVIEWS ── */}
+        {tab === 'reviews' && <ReviewsTab token={token} />}
+
+        {/* ── MESSAGES ── */}
+        {tab === 'messages' && <MessagesTab token={token} />}
 
         {/* ── ANALYTICS ── */}
         {tab === 'analytics' && <>

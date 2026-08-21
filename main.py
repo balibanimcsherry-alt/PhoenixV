@@ -11,7 +11,7 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -857,6 +857,175 @@ def cleaner_seen(_:None=Depends(_require_cleaner),db:Session=Depends(get_db)):
 
 # Serve React SPA in production
 from pathlib import Path as _Path
+# ── Tasks ──────────────────────────────────────────────────────────────────
+class _TaskIn(BaseModel):
+    title:str; category:str='cleaning'; priority:str='normal'; assigned_to:str=''; notes:str=''; due_date:str=''; status:str='pending'
+
+@app.get('/api/admin/tasks')
+def get_tasks(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    rows=db.query(Task).order_by(Task.created_at.desc()).all()
+    return [{'id':t.id,'title':t.title,'category':t.category,'status':t.status,'priority':t.priority,'assigned_to':t.assigned_to,'notes':t.notes,'due_date':t.due_date,'created_at':t.created_at.isoformat(),'completed_at':t.completed_at.isoformat() if t.completed_at else None} for t in rows]
+
+@app.post('/api/admin/tasks')
+def create_task(p:_TaskIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    t=Task(title=p.title,category=p.category,priority=p.priority,assigned_to=p.assigned_to,notes=p.notes,due_date=p.due_date,status=p.status)
+    db.add(t);db.commit();db.refresh(t)
+    return {'id':t.id,'title':t.title,'category':t.category,'status':t.status,'priority':t.priority,'assigned_to':t.assigned_to,'notes':t.notes,'due_date':t.due_date,'created_at':t.created_at.isoformat(),'completed_at':None}
+
+@app.put('/api/admin/tasks/{tid}')
+def update_task(tid:int,p:_TaskIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    t=db.get(Task,tid)
+    if not t: raise HTTPException(404)
+    for k,v in p.model_dump().items(): setattr(t,k,v)
+    if p.status=='done' and not t.completed_at: t.completed_at=datetime.utcnow()
+    elif p.status!='done': t.completed_at=None
+    db.commit()
+    return {'ok':True}
+
+@app.delete('/api/admin/tasks/{tid}')
+def delete_task(tid:int,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    t=db.get(Task,tid);db.delete(t);db.commit();return {'ok':True}
+
+# ── Expenses ────────────────────────────────────────────────────────────────
+class _ExpenseIn(BaseModel):
+    date:str; category:str; description:str; amount:float
+
+@app.get('/api/admin/expenses')
+def get_expenses(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    rows=db.query(Expense).order_by(Expense.date.desc()).all()
+    return [{'id':e.id,'date':e.date,'category':e.category,'description':e.description,'amount':e.amount,'created_at':e.created_at.isoformat()} for e in rows]
+
+@app.post('/api/admin/expenses')
+def create_expense(p:_ExpenseIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    e=Expense(date=p.date,category=p.category,description=p.description,amount=p.amount)
+    db.add(e);db.commit();db.refresh(e)
+    return {'id':e.id,'date':e.date,'category':e.category,'description':e.description,'amount':e.amount,'created_at':e.created_at.isoformat()}
+
+@app.delete('/api/admin/expenses/{eid}')
+def delete_expense(eid:int,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    e=db.get(Expense,eid);db.delete(e);db.commit();return {'ok':True}
+
+# ── Reviews ────────────────────────────────────────────────────────────────
+class _ReviewIn(BaseModel):
+    platform:str; guest_name:str=''; rating:float; review_text:str=''; review_date:str; response:str=''
+
+@app.get('/api/admin/reviews')
+def get_reviews(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    rows=db.query(GuestReview).order_by(GuestReview.review_date.desc()).all()
+    return [{'id':r.id,'platform':r.platform,'guest_name':r.guest_name,'rating':r.rating,'review_text':r.review_text,'response':r.response,'review_date':r.review_date,'created_at':r.created_at.isoformat()} for r in rows]
+
+@app.post('/api/admin/reviews')
+def create_review(p:_ReviewIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    r=GuestReview(platform=p.platform,guest_name=p.guest_name,rating=p.rating,review_text=p.review_text,review_date=p.review_date,response=p.response)
+    db.add(r);db.commit();db.refresh(r)
+    return {'id':r.id,'platform':r.platform,'guest_name':r.guest_name,'rating':r.rating,'review_text':r.review_text,'response':r.response,'review_date':r.review_date,'created_at':r.created_at.isoformat()}
+
+@app.put('/api/admin/reviews/{rid}')
+def update_review(rid:int,p:_ReviewIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    r=db.get(GuestReview,rid)
+    if not r: raise HTTPException(404)
+    for k,v in p.model_dump().items(): setattr(r,k,v)
+    db.commit();return {'ok':True}
+
+@app.delete('/api/admin/reviews/{rid}')
+def delete_review(rid:int,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    r=db.get(GuestReview,rid);db.delete(r);db.commit();return {'ok':True}
+
+# ── Auto-messages ───────────────────────────────────────────────────────────
+class _AMsgIn(BaseModel):
+    name:str; trigger:str; send_hours:int=0; subject:str=''; body:str; enabled:bool=True
+
+@app.get('/api/admin/automessages')
+def get_automessages(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    rows=db.query(AutoMessage).order_by(AutoMessage.created_at).all()
+    return [{'id':m.id,'name':m.name,'trigger':m.trigger,'send_hours':m.send_hours,'subject':m.subject,'body':m.body,'enabled':m.enabled,'created_at':m.created_at.isoformat()} for m in rows]
+
+@app.post('/api/admin/automessages')
+def create_automessage(p:_AMsgIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    m=AutoMessage(name=p.name,trigger=p.trigger,send_hours=p.send_hours,subject=p.subject,body=p.body,enabled=p.enabled)
+    db.add(m);db.commit();db.refresh(m)
+    return {'id':m.id,'name':m.name,'trigger':m.trigger,'send_hours':m.send_hours,'subject':m.subject,'body':m.body,'enabled':m.enabled,'created_at':m.created_at.isoformat()}
+
+@app.put('/api/admin/automessages/{mid}')
+def update_automessage(mid:int,p:_AMsgIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    m=db.get(AutoMessage,mid)
+    if not m: raise HTTPException(404)
+    for k,v in p.model_dump().items(): setattr(m,k,v)
+    db.commit();return {'ok':True}
+
+@app.delete('/api/admin/automessages/{mid}')
+def delete_automessage(mid:int,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    m=db.get(AutoMessage,mid);db.delete(m);db.commit();return {'ok':True}
+
+# ── Property Info ───────────────────────────────────────────────────────────
+class _PropIn(BaseModel):
+    wifi_name:str=''; wifi_password:str=''; door_code:str=''; parking_info:str=''; checkin_instructions:str=''; checkout_instructions:str=''; house_rules:str=''; emergency_contacts:str=''; trash_info:str=''; pool_info:str=''; thermostat_info:str=''; extra_notes:str=''
+
+def _get_prop(db:Session)->PropertyInfo:
+    p=db.get(PropertyInfo,1)
+    if not p: p=PropertyInfo(id=1);db.add(p);db.commit();db.refresh(p)
+    return p
+
+@app.get('/api/admin/property')
+def get_property(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    p=_get_prop(db)
+    return {k:getattr(p,k) for k in ['wifi_name','wifi_password','door_code','parking_info','checkin_instructions','checkout_instructions','house_rules','emergency_contacts','trash_info','pool_info','thermostat_info','extra_notes']}
+
+@app.put('/api/admin/property')
+def update_property(payload:_PropIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    p=_get_prop(db)
+    for k,v in payload.model_dump().items(): setattr(p,k,v)
+    db.commit();return {'ok':True}
+
+# ── Financials ──────────────────────────────────────────────────────────────
+@app.get('/api/admin/financials')
+def admin_financials(_:None=Depends(require_admin),year:int=0,db:Session=Depends(get_db)):
+    import calendar as _cal
+    if not year: year=date.today().year
+    ys=str(year)
+    bookings=[b for b in db.query(BookingRequest).all() if b.checkin.startswith(ys) and b.status in ('confirmed','payment_pending')]
+    ota_res=[r for r in db.query(IcalReservation).all() if r.checkin.startswith(ys)]
+    expenses=db.query(Expense).filter(Expense.date.startswith(ys)).all()
+    monthly=[{'month':m,'month_name':_cal.month_abbr[m],'revenue':0.0,'bookings':0,'direct_nights':0,'ota_nights':0,'expenses':0.0} for m in range(1,13)]
+    def nights(ci,co):
+        try: return max(0,(date.fromisoformat(co)-date.fromisoformat(ci)).days)
+        except: return 0
+    for b in bookings:
+        m=int(b.checkin[5:7])-1; n=nights(b.checkin,b.checkout)
+        monthly[m]['revenue']+=b.total; monthly[m]['bookings']+=1; monthly[m]['direct_nights']+=n
+    for r in ota_res:
+        m=int(r.checkin[5:7])-1; monthly[m]['ota_nights']+=nights(r.checkin,r.checkout)
+    for e in expenses:
+        m=int(e.date[5:7])-1; monthly[m]['expenses']+=e.amount
+    total_rev=sum(b.total for b in bookings)
+    direct_nights=sum(nights(b.checkin,b.checkout) for b in bookings)
+    ota_nights=sum(nights(r.checkin,r.checkout) for r in ota_res)
+    total_nights=direct_nights+ota_nights
+    total_exp=sum(e.amount for e in expenses)
+    avail=366 if _cal.isleap(year) else 365
+    exp_by_cat:dict={}
+    for e in expenses: exp_by_cat[e.category]=exp_by_cat.get(e.category,0)+e.amount
+    return {'year':year,'revenue':total_rev,'expenses':total_exp,'net':total_rev-total_exp,'bookings':len(bookings),'direct_nights':direct_nights,'ota_nights':ota_nights,'total_nights':total_nights,'occupancy':round(total_nights/avail*100,1),'adr':round(total_rev/direct_nights,2) if direct_nights else 0,'revpan':round(total_rev/avail,2),'monthly':monthly,'expenses_by_cat':exp_by_cat}
+
+# ── Pricing (PriceLabs) ─────────────────────────────────────────────────────
+@app.get('/api/admin/pricing')
+async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0):
+    import calendar as _cal
+    if not year: year=date.today().year
+    if not month: month=date.today().month
+    _,days=_cal.monthrange(year,month)
+    start=f'{year}-{month:02d}-01'; end=f'{year}-{month:02d}-{days:02d}'
+    if not settings.pricelabs_api_key or not settings.pricelabs_listing_id:
+        return {'daily':[],'error':'PriceLabs not configured'}
+    headers={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
+    payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':start,'end_date':end}]}
+    async with httpx.AsyncClient(timeout=15) as c:
+        r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=headers,json=payload)
+        if r.status_code>=400: return {'daily':[],'error':'PriceLabs API error'}
+        results=r.json()
+        daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
+        return {'daily':daily,'year':year,'month':month}
+
 from fastapi.staticfiles import StaticFiles as _StaticFiles
 from fastapi.responses import FileResponse as _FileResponse
 
