@@ -21,11 +21,16 @@ def _send(to_email: str, subject: str, html: str, text: str = '') -> bool:
         if text:
             msg.attach(MIMEText(text, 'plain'))
         msg.attach(MIMEText(html, 'html'))
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as s:
-            s.ehlo()
-            s.starttls()
-            s.login(settings.smtp_user, settings.smtp_password)
-            s.sendmail(settings.smtp_user, to_email, msg.as_string())
+        if settings.smtp_port == 465:
+            with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port) as s:
+                s.login(settings.smtp_user, settings.smtp_password)
+                s.sendmail(settings.smtp_user, to_email, msg.as_string())
+        else:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as s:
+                s.ehlo()
+                s.starttls()
+                s.login(settings.smtp_user, settings.smtp_password)
+                s.sendmail(settings.smtp_user, to_email, msg.as_string())
         log.info('Email sent to %s: %s', to_email, subject)
         return True
     except Exception as e:
