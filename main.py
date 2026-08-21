@@ -17,7 +17,8 @@ from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
 from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_name
 import analytics as _analytics
-from email_service import send_booking_confirmation, send_owner_notification
+from email_service import (send_booking_confirmation, send_owner_notification,
+    preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request)
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 
 @app.on_event('startup')
@@ -462,38 +463,54 @@ def update_settings(payload:SettingsSchema,_:None=Depends(require_admin),db:Sess
 @app.post('/api/admin/test-email')
 def admin_test_email(_:None=Depends(require_admin)):
     import smtplib, ssl as _ssl
-    # Show current config (no password) for debugging
-    cfg = {
-        'smtp_host': settings.smtp_host,
-        'smtp_port': settings.smtp_port,
-        'smtp_user': settings.smtp_user,
-        'smtp_password_set': bool(settings.smtp_password),
-        'from_email': settings.from_email,
-    }
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText as _MIMEText
+    cfg = {'smtp_host':settings.smtp_host,'smtp_port':settings.smtp_port,'smtp_user':settings.smtp_user,'smtp_password_set':bool(settings.smtp_password),'from_email':settings.from_email}
     if not settings.smtp_user or not settings.smtp_password:
         raise HTTPException(400, f'SMTP not configured. Current config: {cfg}')
     try:
+        html = preview_booking_confirmation()
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = '✓ Test Email — Coastal Haven Templates Working!'
+        msg['From'] = f'Coastal Haven <{settings.from_email or settings.smtp_user}>'
+        msg['To'] = settings.smtp_user
+        msg.attach(_MIMEText('Test email from Coastal Haven. Your beautiful templates are working!', 'plain'))
+        msg.attach(_MIMEText(html, 'html'))
         if settings.smtp_port == 465:
             with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, context=_ssl.create_default_context()) as s:
                 s.login(settings.smtp_user, settings.smtp_password)
-                from email.mime.text import MIMEText
-                msg = MIMEText(f'Email working! Config: {cfg}', 'plain')
-                msg['Subject'] = 'Test email from Coastal Haven ✓'
-                msg['From'] = settings.smtp_user
-                msg['To'] = settings.smtp_user
                 s.sendmail(settings.smtp_user, settings.smtp_user, msg.as_string())
         else:
             with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as s:
                 s.ehlo(); s.starttls(); s.login(settings.smtp_user, settings.smtp_password)
-                from email.mime.text import MIMEText
-                msg = MIMEText(f'Email working! Config: {cfg}', 'plain')
-                msg['Subject'] = 'Test email from Coastal Haven ✓'
-                msg['From'] = settings.smtp_user
-                msg['To'] = settings.smtp_user
                 s.sendmail(settings.smtp_user, settings.smtp_user, msg.as_string())
-        return {'ok': True, 'message': f'Sent to {settings.smtp_user}', 'config': cfg}
+        return {'ok': True, 'message': f'Sent beautiful template to {settings.smtp_user}', 'config': cfg}
     except Exception as e:
         raise HTTPException(500, f'SMTP error: {type(e).__name__}: {e} | Config: {cfg}')
+
+from fastapi.responses import HTMLResponse
+
+def _require_admin_flex(authorization:str|None=Header(default=None), token:str|None=Query(default=None)):
+    raw = None
+    if authorization and authorization.startswith('Bearer '): raw = authorization.split(' ',1)[1]
+    elif token: raw = token
+    if not raw: raise HTTPException(401,'Admin login required')
+    try:
+        p = jwt.decode(raw, settings.jwt_secret, algorithms=['HS256'])
+        if p.get('sub') != 'admin': raise HTTPException(401,'Admin access required')
+    except JWTError: raise HTTPException(401,'Invalid or expired token')
+
+@app.get('/api/admin/preview-email/{template}', response_class=HTMLResponse)
+def preview_email(template:str, _:None=Depends(_require_admin_flex)):
+    templates = {
+        'booking': preview_booking_confirmation,
+        'pre-arrival': preview_pre_arrival,
+        'checkout': preview_checkout_reminder,
+        'review': preview_review_request,
+    }
+    fn = templates.get(template)
+    if not fn: raise HTTPException(404, f'Unknown template: {template}. Options: {list(templates.keys())}')
+    return HTMLResponse(content=fn())
 
 @app.get('/api/admin/chat')
 def admin_chat(_:None=Depends(require_admin),db:Session=Depends(get_db)):

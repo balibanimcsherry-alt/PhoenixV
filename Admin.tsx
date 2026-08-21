@@ -527,9 +527,40 @@ export default function Admin() {
 
           <SectionCard title="Email">
             <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: 14 }}>
-              Send a test email to <strong>{localStorage.getItem('adminToken') ? settings.cancellation_policy ? 'your configured SMTP address' : '—' : '—'}</strong> to verify SMTP is working.
+              Send a test email (booking confirmation template) to your SMTP address to verify everything is working.
             </p>
             <TestEmailButton token={token} />
+          </SectionCard>
+
+          <SectionCard title="Email Template Previews">
+            <p style={{ margin: '0 0 16px', color: 'var(--muted)', fontSize: 14 }}>
+              Preview all 4 marketing email templates in a new tab — beach & Gulf imagery, industry-standard design.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              {[
+                { key: 'booking', label: '✅ Booking Confirmation', desc: 'Sent on payment success' },
+                { key: 'pre-arrival', label: '🏠 Pre-Arrival (48h)', desc: 'Door code & check-in guide' },
+                { key: 'checkout', label: '🌅 Checkout Reminder', desc: 'Sent night before checkout' },
+                { key: 'review', label: '⭐ Review Request', desc: 'Sent after checkout' },
+              ].map(t => (
+                <a
+                  key={t.key}
+                  href={`/api/admin/preview-email/${t.key}?token=${token}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'block', padding: '14px 16px', borderRadius: 10,
+                    background: 'var(--cream)', border: '1px solid var(--border)',
+                    textDecoration: 'none', color: 'inherit', transition: 'box-shadow .15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 18px rgba(13,95,107,.15)')}
+                  onMouseLeave={e => (e.currentTarget.style.boxShadow = '')}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{t.label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{t.desc}</div>
+                </a>
+              ))}
+            </div>
           </SectionCard>
         </>}
       </div>
