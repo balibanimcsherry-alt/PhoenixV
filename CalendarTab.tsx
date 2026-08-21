@@ -60,7 +60,7 @@ export function CalendarTab({ token }: { token: string }) {
   const [month, setMonth] = useState(today.getMonth());
 
   useEffect(() => {
-    api<any>('/api/pms/reservations?all=1', { headers: { Authorization: `Bearer ${token}` } })
+    const load = () => api<any>('/api/pms/reservations?all=1', { headers: { Authorization: `Bearer ${token}` } })
       .then(data => {
         const ota: Res[] = (data.ota || []).map((r: any) => {
           const { resUrl, phone4 } = parseDescription(r.raw_description || '');
@@ -89,6 +89,9 @@ export function CalendarTab({ token }: { token: string }) {
         setAll([...ota, ...direct]);
       })
       .catch(() => {});
+    load();
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
   }, [token]);
 
   // Build day → reservations map
