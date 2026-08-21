@@ -97,19 +97,26 @@ const SHOOT_CONFIGS = [
   { top: '5%',  right: '38%', period: 31, offset: 13 },
 ];
 
-// Fireflies – warm glowing dots that drift and pulse
-function makeFireflies(n: number) {
+// Shrimp boats & fishing vessels — bright work lights near the Gulf horizon
+function makeBoatLights(n: number) {
   return Array.from({ length: n }, (_, i) => ({
-    x: rng(i * 29.1) * 88 + 6,
-    y: rng(i * 29.2) * 60 + 25,
-    delay: rng(i * 29.3) * 7,
-    driftDur: 4 + rng(i * 29.4) * 5,
-    glowDur: 1.5 + rng(i * 29.5) * 2.5,
-    dx: (rng(i * 29.6) - 0.5) * 80,
-    dy: (rng(i * 29.7) - 0.5) * 50,
-    sz: 3 + rng(i * 29.8) * 3,
+    x: 4 + rng(i * 41.1) * 92,
+    y: 44 + rng(i * 41.2) * 9,        // horizon zone: 44–53% down
+    sz: 2.5 + rng(i * 41.3) * 3.5,
+    delay: rng(i * 41.4) * 12,
+    driftDur: 20 + rng(i * 41.5) * 35,
+    glowDur: 1.8 + rng(i * 41.6) * 2.8,
+    dx: (rng(i * 41.7) - 0.5) * 28,
+    warm: rng(i * 41.8) > 0.35,        // 65% cool white work lights, 35% warm amber
   }));
 }
+
+// Oil / gas platform warning lights — faint red blinks on the far horizon
+const PLATFORM_LIGHTS = [
+  { left: '12%', top: '47%', delay: 0   },
+  { left: '47%', top: '46%', delay: 1.8 },
+  { left: '76%', top: '48%', delay: 0.9 },
+];
 
 // ── Main export ────────────────────────────────────────────────
 export default function WeatherTheme() {
@@ -166,12 +173,12 @@ function ThemeOverlay({ theme }: { theme: Theme }) {
   // Show moon/stars for clear-ish nights (not stormy/rainy/snowy)
   const clearNight = isNight && !isRain && !isStorm && !isSnow;
 
-  const drops     = useMemo(() => makeDrops(isStorm ? 110 : 68), []);
-  const flakes    = useMemo(() => makeFlakes(40), []);
-  const leaves    = useMemo(() => makeLeaves(18), []);
-  const petals    = useMemo(() => makePetals(20), []);
-  const stars     = useMemo(() => makeStars(), []);
-  const fireflies = useMemo(() => makeFireflies(14), []);
+  const drops      = useMemo(() => makeDrops(isStorm ? 110 : 68), []);
+  const flakes     = useMemo(() => makeFlakes(40), []);
+  const leaves     = useMemo(() => makeLeaves(18), []);
+  const petals     = useMemo(() => makePetals(20), []);
+  const stars      = useMemo(() => makeStars(), []);
+  const boatLights = useMemo(() => makeBoatLights(7), []);
 
   return (
     <div className={`wt-overlay wt-${theme}`} aria-hidden="true">
@@ -232,17 +239,31 @@ function ThemeOverlay({ theme }: { theme: Theme }) {
           } as S} />
         ))}
 
-        {/* Fireflies */}
-        {fireflies.map((f, i) => (
-          <span key={i} className="wt-firefly" style={{
-            left: `${f.x}%`, top: `${f.y}%`,
-            width: `${f.sz}px`, height: `${f.sz}px`,
-            animationDelay: `${f.delay}s`,
-            '--wt-drift-dur': `${f.driftDur}s`,
-            '--wt-glow-dur':  `${f.glowDur}s`,
-            '--wt-dx': `${f.dx}px`, '--wt-dy': `${f.dy}px`,
+        {/* Shrimp boats & fishing vessels on the Gulf */}
+        {boatLights.map((b, i) => (
+          <span key={i} className={`wt-boat-light${b.warm ? ' warm' : ''}`} style={{
+            left: `${b.x}%`, top: `${b.y}%`,
+            width: `${b.sz}px`, height: `${b.sz}px`,
+            animationDelay: `${b.delay}s`,
+            '--wt-drift-dur': `${b.driftDur}s`,
+            '--wt-glow-dur':  `${b.glowDur}s`,
+            '--wt-dx': `${b.dx}px`,
           } as S} />
         ))}
+
+        {/* Oil / gas platform warning lights on the far horizon */}
+        {PLATFORM_LIGHTS.map((p, i) => (
+          <span key={i} className="wt-platform-light" style={{
+            left: p.left, top: p.top,
+            animationDelay: `${p.delay}s`,
+          }} />
+        ))}
+
+        {/* Bioluminescence — faint blue-green in breaking waves below */}
+        <div className="wt-bio-glow" />
+
+        {/* Warm shore glow — building & beach lighting from below */}
+        <div className="wt-shore-glow" />
       </>}
 
       {isStorm && <div className="wt-lightning" />}
