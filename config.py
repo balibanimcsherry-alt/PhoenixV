@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     stripe_test_publishable_key:str=''; stripe_test_secret_key:str=''
     stripe_live_publishable_key:str=''; stripe_live_secret_key:str=''
     stripe_success_url:str='https://orangebeachstay.com/book?success=1'; stripe_cancel_url:str='https://orangebeachstay.com/book?cancelled=1'
-    guesty_api_token:str=''; guesty_listing_id:str=''; pricelabs_api_key:str=''; pricelabs_listing_id:str=''
+    guesty_api_token:str=''; guesty_listing_id:str=''; pricelabs_api_key:str=''; pricelabs_listing_id:str=''; pricelabs_pms:str='airbnb'
     smtp_host:str='smtp.gmail.com'
     smtp_port:int=587
     smtp_user:str=''

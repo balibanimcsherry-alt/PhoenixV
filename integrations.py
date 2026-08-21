@@ -134,11 +134,12 @@ async def pricelabs_nightly_rate(checkin: str, checkout: str) -> tuple[float, st
         base = 365 if month in (5, 6, 7, 8) else 285 if month in (3, 4, 9, 10) else 225
         return float(base), 'demo seasonal rate (PriceLabs credentials not configured)'
     headers = {'X-API-Key': settings.pricelabs_api_key, 'Content-Type': 'application/json'}
-    payload = {'listing_id': settings.pricelabs_listing_id, 'start_date': checkin, 'end_date': checkout}
+    payload = {'listings': [{'id': settings.pricelabs_listing_id, 'pms': settings.pricelabs_pms, 'start_date': checkin, 'end_date': checkout}]}
     async with httpx.AsyncClient(timeout=15) as c:
         r = await c.post('https://api.pricelabs.co/v1/listing_prices', headers=headers, json=payload)
         if r.status_code >= 400:
             return 300.0, 'PriceLabs fallback'
-        data = r.json(); prices = data.get('prices') or data.get('data') or []
-        nums = [float(x.get('price', 0)) for x in prices if x.get('price')]
+        results = r.json()
+        daily = (results[0].get('data') or []) if isinstance(results, list) and results else []
+        nums = [float(x['price']) for x in daily if x.get('price', 0) > 0]
         return (sum(nums) / len(nums) if nums else 300.0), 'PriceLabs'
