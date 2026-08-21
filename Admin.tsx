@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { PMSTab } from './PMS';
+import { CalendarTab } from './CalendarTab';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -93,7 +94,7 @@ export default function Admin() {
   const avgBooking = confirmedBookings.length ? totalRevenue / confirmedBookings.length : 0;
   const convRate = analytics?.unique_sessions ? ((analytics.funnel?.find((f: any) => f.step === 'Booking Confirmed')?.count || 0) / analytics.unique_sessions * 100).toFixed(1) : '0.0';
 
-  const tabs = ['overview', 'pms', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'settings'];
+  const tabs = ['overview', 'calendar', 'pms', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'settings'];
 
   return (
     <main className="admin-page">
@@ -154,6 +155,9 @@ export default function Admin() {
             </SectionCard>
           </>}
         </>}
+
+        {/* ── CALENDAR ── */}
+        {tab === 'calendar' && <CalendarTab token={token} />}
 
         {/* ── PMS ── */}
         {tab === 'pms' && <PMSTab token={token} />}

@@ -781,10 +781,15 @@ async def pms_sync(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     return {'ok':True,'new_reservations':n,'synced_at':_pms_last_synced}
 
 @app.get('/api/pms/reservations')
-def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db),all:bool=False):
     today_s=date.today().isoformat()
-    ota=db.query(IcalReservation).filter(IcalReservation.checkout>=today_s).order_by(IcalReservation.checkin).all()
-    direct=db.query(BookingRequest).filter(BookingRequest.checkout>=today_s,BookingRequest.status.in_(['confirmed','payment_pending','pending_approval'])).order_by(BookingRequest.checkin).all()
+    ota_q=db.query(IcalReservation)
+    direct_q=db.query(BookingRequest).filter(BookingRequest.status.in_(['confirmed','payment_pending','pending_approval']))
+    if not all:
+        ota_q=ota_q.filter(IcalReservation.checkout>=today_s)
+        direct_q=direct_q.filter(BookingRequest.checkout>=today_s)
+    ota=ota_q.order_by(IcalReservation.checkin).all()
+    direct=direct_q.order_by(BookingRequest.checkin).all()
     base=settings.frontend_url.rstrip('/')
     return {
         'ota':[{'id':r.id,'uid':r.uid,'platform':r.platform,'checkin':r.checkin,'checkout':r.checkout,
