@@ -459,6 +459,18 @@ def update_settings(payload:SettingsSchema,_:None=Depends(require_admin),db:Sess
     for k,v in payload.model_dump().items(): setattr(s,k,v)
     db.commit();db.refresh(s);return SettingsSchema.model_validate(s,from_attributes=True)
 
+@app.post('/api/admin/test-email')
+def admin_test_email(_:None=Depends(require_admin)):
+    from email_service import _send
+    ok=_send(
+        settings.smtp_user,
+        'Test email from Coastal Haven ✓',
+        '<div style="font-family:Arial,sans-serif;padding:32px;max-width:480px"><h2 style="color:#0d5f6b">Email is working! ✓</h2><p>Your SMTP settings are correctly configured for Coastal Haven.</p><p style="color:#888;font-size:13px">smtp: '+settings.smtp_host+':'+str(settings.smtp_port)+'</p></div>',
+        'Email is working! Your SMTP settings are correctly configured for Coastal Haven.'
+    )
+    if ok: return {'ok':True,'message':f'Test email sent to {settings.smtp_user}'}
+    raise HTTPException(500,'Failed to send — check SMTP_USER, SMTP_PASSWORD, and SMTP_PORT on Render')
+
 @app.get('/api/admin/chat')
 def admin_chat(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     rows=db.query(ChatMessage).order_by(ChatMessage.created_at.desc()).limit(100).all();return [{'id':r.id,'name':r.name,'email':r.email,'message':r.message,'created_at':r.created_at.isoformat()} for r in rows]

@@ -37,6 +37,29 @@ function kpi(label: string, value: string | number, sub?: string) {
   );
 }
 
+function TestEmailButton({ token }: { token: string }) {
+  const [status, setStatus] = useState<'idle'|'sending'|'ok'|'err'>('idle');
+  const [msg, setMsg] = useState('');
+  const send = async () => {
+    setStatus('sending');
+    try {
+      const r = await api<any>('/api/admin/test-email', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      setMsg(r.message || 'Sent!'); setStatus('ok');
+    } catch (e: any) {
+      setMsg(e?.message || 'Failed — check Render env vars'); setStatus('err');
+    }
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <button className="btn light" onClick={send} disabled={status === 'sending'} style={{ minWidth: 160 }}>
+        {status === 'sending' ? 'Sending…' : '📧 Send test email'}
+      </button>
+      {status === 'ok' && <span style={{ color: '#28704e', fontWeight: 700 }}>✓ {msg}</span>}
+      {status === 'err' && <span style={{ color: '#a74840', fontWeight: 700 }}>✕ {msg}</span>}
+    </div>
+  );
+}
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className="admin-card"><h2>{title}</h2>{children}</div>;
 }
@@ -501,6 +524,13 @@ export default function Admin() {
           </SectionCard>
           <button className="btn" onClick={save}>Save settings</button>
           {saved && <span className="saved" style={{ marginLeft: 12 }}>{saved}</span>}
+
+          <SectionCard title="Email">
+            <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: 14 }}>
+              Send a test email to <strong>{localStorage.getItem('adminToken') ? settings.cancellation_policy ? 'your configured SMTP address' : '—' : '—'}</strong> to verify SMTP is working.
+            </p>
+            <TestEmailButton token={token} />
+          </SectionCard>
         </>}
       </div>
     </main>
