@@ -19,7 +19,24 @@ interface Res {
   platform: string;
   checkin: string;
   checkout: string;
-  guest_name: string;
+  label: string;       // shown in pill
+  tooltip: string;     // shown on hover
+  resUrl?: string;     // Airbnb reservation link
+}
+
+function parseDescription(desc: string): { resUrl?: string; phone4?: string } {
+  const urlMatch = desc.match(/Reservation URL:\s*(https?:\/\/\S+)/);
+  const phoneMatch = desc.match(/Phone Number \(Last 4 Digits\):\s*(\d+)/);
+  return {
+    resUrl: urlMatch?.[1],
+    phone4: phoneMatch?.[1],
+  };
+}
+
+function makeLabel(platform: string, summary: string, phone4?: string): string {
+  const base = PLATFORM_LABEL[platform] || platform;
+  if (phone4) return `${base} ···${phone4}`;
+  return base;
 }
 
 function datesInRange(checkin: string, checkout: string): string[] {
@@ -45,20 +62,30 @@ export function CalendarTab({ token }: { token: string }) {
   useEffect(() => {
     api<any>('/api/pms/reservations?all=1', { headers: { Authorization: `Bearer ${token}` } })
       .then(data => {
-        const ota: Res[] = (data.ota || []).map((r: any) => ({
-          id: r.id,
-          platform: r.platform,
-          checkin: r.checkin,
-          checkout: r.checkout,
-          guest_name: r.guest_name || r.summary || PLATFORM_LABEL[r.platform] || r.platform,
-        }));
-        const direct: Res[] = (data.direct || []).map((b: any) => ({
-          id: -b.id,
-          platform: 'direct',
-          checkin: b.checkin,
-          checkout: b.checkout,
-          guest_name: b.guest_name || b.email || 'Direct guest',
-        }));
+        const ota: Res[] = (data.ota || []).map((r: any) => {
+          const { resUrl, phone4 } = parseDescription(r.raw_description || '');
+          const label = makeLabel(r.platform, r.summary || '', phone4);
+          const nights = Math.round((new Date(r.checkout + 'T00:00:00').getTime() - new Date(r.checkin + 'T00:00:00').getTime()) / 86400000);
+          const tooltip = [
+            `${PLATFORM_LABEL[r.platform] || r.platform}`,
+            `${r.checkin} → ${r.checkout} (${nights} nights)`,
+            phone4 ? `Phone: ···${phone4}` : '',
+            resUrl ? `View reservation ↗` : '',
+          ].filter(Boolean).join('\n');
+          return { id: r.id, platform: r.platform, checkin: r.checkin, checkout: r.checkout, label, tooltip, resUrl };
+        });
+        const direct: Res[] = (data.direct || []).map((b: any) => {
+          const nights = Math.round((new Date(b.checkout + 'T00:00:00').getTime() - new Date(b.checkin + 'T00:00:00').getTime()) / 86400000);
+          const label = b.guest_name || b.email || 'Direct guest';
+          const tooltip = [
+            `Direct booking — #CHV-${String(b.id).padStart(4,'0')}`,
+            `${b.guest_name || ''}${b.email ? ' · ' + b.email : ''}`,
+            `${b.checkin} → ${b.checkout} (${nights} nights)`,
+            b.phone ? `Phone: ${b.phone}` : '',
+            `Total: $${b.total?.toFixed(0)}`,
+          ].filter(Boolean).join('\n');
+          return { id: -b.id, platform: 'direct', checkin: b.checkin, checkout: b.checkout, label, tooltip };
+        });
         setAll([...ota, ...direct]);
       })
       .catch(() => {});
@@ -89,10 +116,10 @@ export function CalendarTab({ token }: { token: string }) {
   return (
     <div>
       <h1>Calendar</h1>
-      <p className="sub">All blocked dates — Airbnb, VRBO, Booking.com, and direct bookings.</p>
+      <p className="sub">All blocked dates — Airbnb, VRBO, Booking.com, and direct bookings. Hover a pill for details.</p>
 
       {/* Legend */}
-      <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         {Object.entries(PLATFORM_LABEL).map(([k, label]) => (
           <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, background: PLATFORM_COLOR[k] }} />
@@ -100,7 +127,7 @@ export function CalendarTab({ token }: { token: string }) {
           </div>
         ))}
         <div style={{ fontSize: 13, color: '#888', marginLeft: 'auto' }}>
-          {all.length} total reservations loaded
+          {all.length} reservations · Guest names not provided by OTAs
         </div>
       </div>
 
@@ -141,34 +168,60 @@ export function CalendarTab({ token }: { token: string }) {
               borderRadius: 6,
               border: isToday ? '2px solid #0d5f6b' : '1px solid #eee',
               padding: '5px 5px 4px',
-              opacity: isPast && reses.length === 0 ? 0.5 : 1,
+              opacity: isPast && reses.length === 0 ? 0.45 : 1,
             }}>
               <div style={{
                 fontSize: 13, fontWeight: isToday ? 700 : 400,
-                color: isToday ? '#0d5f6b' : isPast ? '#999' : '#222',
+                color: isToday ? '#0d5f6b' : isPast ? '#aaa' : '#222',
                 marginBottom: 3,
               }}>{day}</div>
 
               {reses.slice(0, 3).map((r, ri) => (
-                <div
-                  key={ri}
-                  title={`${PLATFORM_LABEL[r.platform] || r.platform}: ${r.guest_name}\n${r.checkin} → ${r.checkout}`}
-                  style={{
-                    background: PLATFORM_COLOR[r.platform] || '#888',
-                    color: '#fff',
-                    fontSize: 10,
-                    borderRadius: 3,
-                    padding: '2px 5px',
-                    marginBottom: 2,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    cursor: 'default',
-                    lineHeight: '1.4',
-                  }}
-                >
-                  {r.guest_name}
-                </div>
+                r.resUrl ? (
+                  <a
+                    key={ri}
+                    href={r.resUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={r.tooltip}
+                    style={{
+                      display: 'block',
+                      background: PLATFORM_COLOR[r.platform] || '#888',
+                      color: '#fff',
+                      fontSize: 10,
+                      borderRadius: 3,
+                      padding: '2px 5px',
+                      marginBottom: 2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      lineHeight: '1.4',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    {r.label}
+                  </a>
+                ) : (
+                  <div
+                    key={ri}
+                    title={r.tooltip}
+                    style={{
+                      background: PLATFORM_COLOR[r.platform] || '#888',
+                      color: '#fff',
+                      fontSize: 10,
+                      borderRadius: 3,
+                      padding: '2px 5px',
+                      marginBottom: 2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      cursor: 'default',
+                      lineHeight: '1.4',
+                    }}
+                  >
+                    {r.label}
+                  </div>
+                )
               ))}
               {reses.length > 3 && (
                 <div style={{ fontSize: 9, color: '#999', paddingLeft: 2 }}>+{reses.length - 3} more</div>
@@ -176,6 +229,13 @@ export function CalendarTab({ token }: { token: string }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Note about OTA limitations */}
+      <div style={{ marginTop: 20, padding: '12px 16px', background: '#f5f5f3', borderRadius: 8, fontSize: 12, color: '#666' }}>
+        <strong>Note:</strong> Airbnb and VRBO iCal feeds don't include guest names — this is an OTA privacy policy.
+        Airbnb pills show the last 4 digits of the guest's phone and link directly to the reservation in your Airbnb host portal.
+        For full guest details, check your Airbnb/VRBO host apps.
       </div>
     </div>
   );
