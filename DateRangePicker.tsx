@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DayPicker } from 'react-day-picker';
 import { format, parseISO, addDays, addMonths } from 'date-fns';
@@ -41,34 +41,17 @@ interface Props {
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
-// Module-level price map so the stable CustomDayButton can read latest prices
-const _priceMapRef: { current: Record<string, number> } = { current: {} };
-
-function CustomDayButton({ day, modifiers, children, ...buttonProps }: any) {
-  const dateStr = format(day.date, 'yyyy-MM-dd');
-  const price = _priceMapRef.current[dateStr];
-  return (
-    <button {...buttonProps}>
-      {children ?? day.date.getDate()}
-      {price && !modifiers.disabled && !modifiers.outside && (
-        <span className="rdp-day-price">${Math.round(price)}</span>
-      )}
-    </button>
-  );
-}
-
-const COMPONENTS = { DayButton: CustomDayButton };
-
 export default function DateRangePicker({ checkin, checkout, onCheckin, onCheckout, inline }: Props) {
   const [open, setOpen] = useState(false);
   const [blockedSet, setBlockedSet] = useState<Set<string>>(new Set());
   const [month, setMonth] = useState(new Date());
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
   const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadBlocked().then(setBlockedSet); }, []);
 
-  // Fetch prices for the two visible months and update the shared ref
+  // Fetch prices for the two visible months
   useEffect(() => {
     const months = [month, addMonths(month, 1)];
     Promise.all(
@@ -80,7 +63,7 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     ).then(results => {
       const map: Record<string, number> = {};
       for (const r of results) for (const p of r.prices) map[p.date] = p.direct_price;
-      _priceMapRef.current = map;
+      setPriceMap(map);
     });
   }, [month]);
 
@@ -115,9 +98,10 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     const from = range?.from;
     const to = range?.to;
     onCheckin(from ? format(from, 'yyyy-MM-dd') : '');
-    onCheckout(to && to > from! ? format(to, 'yyyy-MM-dd') : '');
-    // Only close when a real range (at least 1 night) is complete
-    if (from && to && to > from && !inline) setOpen(false);
+    // Only set checkout when it's a real range (different day)
+    const validTo = to && from && to.getTime() !== from.getTime() ? to : undefined;
+    onCheckout(validTo ? format(validTo, 'yyyy-MM-dd') : '');
+    if (from && validTo && !inline) setOpen(false);
   };
 
   const label = checkin && checkout
@@ -125,9 +109,24 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     : checkin ? `${format(parseISO(checkin), 'MMM d')} → pick checkout`
     : 'Select dates';
 
+  // Custom day button that shows nightly price below the date number
+  function PricedDayButton({ day, modifiers, children, ...buttonProps }: any) {
+    const ds = format(day.date, 'yyyy-MM-dd');
+    const price = priceMap[ds];
+    return (
+      <button {...buttonProps}>
+        {children ?? day.date.getDate()}
+        {price && !modifiers.disabled && !modifiers.outside && (
+          <span className="rdp-day-price">${Math.round(price)}</span>
+        )}
+      </button>
+    );
+  }
+
   const picker = (
     <DayPicker
       mode="range"
+      min={1}
       selected={selected as any}
       onSelect={handleSelect as any}
       month={month}
@@ -135,7 +134,7 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
       numberOfMonths={2}
       disabled={isDisabled}
       showOutsideDays={false}
-      components={COMPONENTS}
+      components={{ DayButton: PricedDayButton } as any}
     />
   );
 
