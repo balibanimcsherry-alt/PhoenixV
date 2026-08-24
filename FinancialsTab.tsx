@@ -70,7 +70,7 @@ export function FinancialsTab({ token }:{ token:string }) {
             <BarChart data={fin.monthly}>
               <XAxis dataKey="month_name" tick={{fontSize:11}} />
               <YAxis tick={{fontSize:11}} tickFormatter={v=>`$${v}`} />
-              <Tooltip formatter={(v:number)=>`$${v.toLocaleString()}`} />
+              <Tooltip formatter={(v:any)=>`$${Number(v).toLocaleString()}`} />
               <Legend />
               <Bar dataKey="revenue" fill="#0d5f6b" name="Revenue" radius={[4,4,0,0]} />
               <Bar dataKey="expenses" fill="#d98871" name="Expenses" radius={[4,4,0,0]} />
@@ -102,7 +102,7 @@ export function FinancialsTab({ token }:{ token:string }) {
                   <Pie data={Object.entries(fin.expenses_by_cat).map(([name,value])=>({name,value}))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} label={({name,percent})=>`${name} ${((percent??0)*100).toFixed(0)}%`} labelLine={false}>
                     {Object.keys(fin.expenses_by_cat).map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v:number)=>`$${v.toFixed(2)}`} />
+                  <Tooltip formatter={(v:any)=>`$${Number(v).toFixed(2)}`} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

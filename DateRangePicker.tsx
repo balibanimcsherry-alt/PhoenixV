@@ -45,13 +45,13 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
   const [open, setOpen] = useState(false);
   const [blockedSet, setBlockedSet] = useState<Set<string>>(new Set());
   const [month, setMonth] = useState(new Date());
-  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
+  const [priceMap, setPriceMap] = useState<Record<string, { price: number; color: string }>>({});
   const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadBlocked().then(setBlockedSet); }, []);
 
-  // Fetch prices for the two visible months
+  // Fetch prices for the two visible months and color-code by demand level
   useEffect(() => {
     const months = [month, addMonths(month, 1)];
     Promise.all(
@@ -61,8 +61,20 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
         ).catch(() => ({ prices: [] }))
       )
     ).then(results => {
-      const map: Record<string, number> = {};
-      for (const r of results) for (const p of r.prices) map[p.date] = p.direct_price;
+      const raw: Record<string, number> = {};
+      const all: number[] = [];
+      for (const r of results) for (const p of r.prices) {
+        if (p.direct_price > 0) { raw[p.date] = p.direct_price; all.push(p.direct_price); }
+      }
+      const lo = all.length ? Math.min(...all) : 0;
+      const hi = all.length ? Math.max(...all) : 1;
+      const map: Record<string, { price: number; color: string }> = {};
+      for (const [d, price] of Object.entries(raw)) {
+        const pct = hi > lo ? (price - lo) / (hi - lo) : 0.5;
+        // green = best deal, amber = moderate, coral = peak
+        const color = pct > 0.66 ? '#c94340' : pct > 0.33 ? '#c87941' : '#17a45f';
+        map[d] = { price, color };
+      }
       setPriceMap(map);
     });
   }, [month]);
@@ -91,17 +103,19 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     if (from && validTo && !inline) setOpen(false);
   };
 
-  // Render price below the day button inside the table cell (outside the 42px circle button)
-  const PricedDay = useCallback(({ day, modifiers, children, ...tdProps }: any) => {
+  // Override DayButton — price stacks below date number via flex-direction:column CSS
+  const PricedDayButton = useCallback(({ day, modifiers, children, ...btnProps }: any) => {
     const ds = format(day.date, 'yyyy-MM-dd');
-    const price = priceMap[ds];
+    const entry = priceMap[ds];
     return (
-      <td {...tdProps}>
+      <button {...btnProps}>
         {children}
-        {price && !modifiers.disabled && !modifiers.outside && (
-          <span className="rdp-day-price">${Math.round(price)}</span>
+        {entry && !modifiers.disabled && !modifiers.outside && (
+          <span className="rdp-day-price" style={{ color: entry.color }}>
+            ${Math.round(entry.price)}
+          </span>
         )}
-      </td>
+      </button>
     );
   }, [priceMap]);
 
@@ -121,7 +135,7 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
       numberOfMonths={2}
       disabled={isDisabled}
       showOutsideDays={false}
-      components={{ Day: PricedDay } as any}
+      components={{ DayButton: PricedDayButton } as any}
     />
   );
 
