@@ -28,7 +28,7 @@ async def _pricelabs_sync_loop():
             if settings.pricelabs_api_key and settings.pricelabs_listing_id:
                 today=date.today()
                 import calendar as _cal2
-                ey=today.year+2; em=today.month; _,ed=_cal2.monthrange(ey,em)
+                ey=today.year+1; em=today.month; _,ed=_cal2.monthrange(ey,em)
                 hdrs={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
                 pl={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':today.isoformat(),'end_date':f'{ey}-{em:02d}-{ed:02d}'}]}
                 async with httpx.AsyncClient(timeout=60) as c:
@@ -1112,12 +1112,14 @@ async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:
         daily=[{'date':p.date,'price':p.price,'min_stay':p.min_stay,'demand_color':p.demand_color,'occupancy':p.occupancy} for p in cached]
         return {'daily':daily,'year':year,'month':month}
     if not settings.pricelabs_api_key or not settings.pricelabs_listing_id:
-        return {'daily':[],'error':'PriceLabs not configured'}
+        return {'daily':[],'error':'PriceLabs not configured — add PRICELABS_API_KEY and PRICELABS_LISTING_ID on Render'}
+    # Don't request past dates — PriceLabs may reject them
+    api_start=max(date.today(),date(year,month,1)).isoformat()
     headers={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
-    payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':start,'end_date':end}]}
+    payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':api_start,'end_date':end}]}
     async with httpx.AsyncClient(timeout=15) as c:
         r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=headers,json=payload)
-        if r.status_code>=400: return {'daily':[],'error':f'PriceLabs API error ({r.status_code})'}
+        if r.status_code>=400: return {'daily':[],'error':f'PriceLabs API error ({r.status_code}) — click Sync Now to retry'}
         results=r.json()
         daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
         return {'daily':daily,'year':year,'month':month}
@@ -1145,7 +1147,7 @@ async def sync_pricing(_:None=Depends(require_admin),db:Session=Depends(get_db))
         raise HTTPException(400,'PriceLabs not configured')
     today=date.today()
     import calendar as _cal
-    end_year=today.year+2; end_month=today.month
+    end_year=today.year+1; end_month=today.month
     _,end_days=_cal.monthrange(end_year,end_month)
     start_str=today.isoformat(); end_str=f'{end_year}-{end_month:02d}-{end_days:02d}'
     headers={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}

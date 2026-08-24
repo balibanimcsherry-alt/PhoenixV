@@ -107,7 +107,7 @@ export function PricingTab({ token }:{ token:string }) {
         {loading && <span style={{color:'#888',fontSize:13}}>Loading…</span>}
       </div>
 
-      {error && <div style={{background:'#fde7e5',borderRadius:10,padding:'12px 16px',color:'#a74840',marginBottom:16}}>{error} — Make sure PRICELABS_API_KEY and PRICELABS_LISTING_ID are set on Render.</div>}
+      {error && <div style={{background:'#fde7e5',borderRadius:10,padding:'12px 16px',color:'#a74840',marginBottom:16}}>{error}</div>}
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:3}}>
         {DOWS.map(d=>(
