@@ -11,7 +11,7 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -21,10 +21,45 @@ from email_service import (send_booking_confirmation, send_owner_notification,
     preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request)
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 
+async def _pricelabs_sync_loop():
+    await asyncio.sleep(60)  # wait for DB to be ready
+    while True:
+        try:
+            if settings.pricelabs_api_key and settings.pricelabs_listing_id:
+                today=date.today()
+                import calendar as _cal2
+                ey=today.year+2; em=today.month; _,ed=_cal2.monthrange(ey,em)
+                hdrs={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
+                pl={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':today.isoformat(),'end_date':f'{ey}-{em:02d}-{ed:02d}'}]}
+                async with httpx.AsyncClient(timeout=60) as c:
+                    r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=hdrs,json=pl)
+                if r.status_code<400:
+                    results=r.json()
+                    daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
+                    now=datetime.utcnow()
+                    db=next(get_db())
+                    try:
+                        for d in daily:
+                            ds=d.get('date'); price=d.get('price',0)
+                            if not ds or not price: continue
+                            existing=db.query(DailyPrice).filter(DailyPrice.date==ds).first()
+                            if existing:
+                                existing.price=float(price); existing.min_stay=d.get('min_stay',1) or 1
+                                existing.demand_color=d.get('demand_color','') or ''; existing.occupancy=d.get('occupancy',0) or 0
+                                existing.synced_at=now
+                            else:
+                                db.add(DailyPrice(date=ds,price=float(price),min_stay=d.get('min_stay',1) or 1,demand_color=d.get('demand_color','') or '',occupancy=d.get('occupancy',0) or 0,synced_at=now))
+                        db.commit()
+                        print(f'PriceLabs auto-sync: {len(daily)} days cached')
+                    finally: db.close()
+        except Exception as e: print(f'PriceLabs sync error: {e}')
+        await asyncio.sleep(3600)  # 1 hour
+
 @app.on_event('startup')
 async def _startup():
     try: Base.metadata.create_all(bind=engine)
     except Exception as e: print(f'DB init warning: {e}')
+    asyncio.create_task(_pricelabs_sync_loop())
 app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'https://www.orangebeachstay.com','https://coastal-haven.onrender.com','http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
 
 _SKIP_ANALYTICS={'/docs','/openapi.json','/favicon.ico'}
@@ -286,7 +321,11 @@ async def quote(checkin:str,checkout:str,guests:int=4,db:Session=Depends(get_db)
     if nights<1: raise HTTPException(400,'Checkout must be after check-in')
     if guests<1 or guests>10: raise HTTPException(400,'Guest count must be 1–10')
     available,availability_source=await airbnb_available(checkin,checkout)
-    nightly,pricing_source=await pricelabs_nightly_rate(checkin,checkout)
+    cached=[p for p in db.query(DailyPrice).filter(DailyPrice.date>=checkin,DailyPrice.date<checkout).all()]
+    if len(cached)==nights:
+        nightly=sum(p.price for p in cached)/nights; pricing_source='PriceLabs (cached)'
+    else:
+        nightly,pricing_source=await pricelabs_nightly_rate(checkin,checkout)
     s=get_settings(db)
     disc_pct=s.direct_discount_percent/100
     gross=nightly*nights                          # Airbnb subtotal (nightly only)
@@ -1078,6 +1117,43 @@ async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0):
         results=r.json()
         daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
         return {'daily':daily,'year':year,'month':month}
+
+@app.get('/api/admin/pricing/sync-status')
+def pricing_sync_status(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    latest=db.query(DailyPrice).order_by(DailyPrice.synced_at.desc()).first()
+    count=db.query(DailyPrice).count()
+    return {'last_synced':latest.synced_at.isoformat() if latest else None,'cached_days':count}
+
+@app.post('/api/admin/pricing/sync')
+async def sync_pricing(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    if not settings.pricelabs_api_key or not settings.pricelabs_listing_id:
+        raise HTTPException(400,'PriceLabs not configured')
+    today=date.today()
+    import calendar as _cal
+    end_year=today.year+2; end_month=today.month
+    _,end_days=_cal.monthrange(end_year,end_month)
+    start_str=today.isoformat(); end_str=f'{end_year}-{end_month:02d}-{end_days:02d}'
+    headers={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
+    payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':start_str,'end_date':end_str}]}
+    async with httpx.AsyncClient(timeout=60) as c:
+        r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=headers,json=payload)
+    if r.status_code>=400: raise HTTPException(502,'PriceLabs API error')
+    results=r.json()
+    daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
+    now=datetime.utcnow(); count=0
+    for d in daily:
+        ds=d.get('date'); price=d.get('price',0)
+        if not ds or not price: continue
+        existing=db.query(DailyPrice).filter(DailyPrice.date==ds).first()
+        if existing:
+            existing.price=float(price); existing.min_stay=d.get('min_stay',1) or 1
+            existing.demand_color=d.get('demand_color','') or ''; existing.occupancy=d.get('occupancy',0) or 0
+            existing.synced_at=now
+        else:
+            db.add(DailyPrice(date=ds,price=float(price),min_stay=d.get('min_stay',1) or 1,demand_color=d.get('demand_color','') or '',occupancy=d.get('occupancy',0) or 0,synced_at=now))
+        count+=1
+    db.commit()
+    return {'synced':count,'synced_at':now.isoformat()}
 
 from fastapi.staticfiles import StaticFiles as _StaticFiles
 from fastapi.responses import FileResponse as _FileResponse

@@ -19,7 +19,24 @@ export function PricingTab({ token }:{ token:string }) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [syncStatus, setSyncStatus] = useState<{last_synced:string|null,cached_days:number}|null>(null);
+  const [syncing, setSyncing] = useState(false);
   const h = { Authorization:`Bearer ${token}` };
+
+  const loadSyncStatus = () =>
+    api<any>('/api/admin/pricing/sync-status',{headers:h}).then(setSyncStatus).catch(()=>{});
+
+  useEffect(()=>{ loadSyncStatus(); },[token]);
+
+  const syncNow = async () => {
+    setSyncing(true);
+    try {
+      await api<any>('/api/admin/pricing/sync',{method:'POST',headers:h});
+      await loadSyncStatus();
+      load();
+    } catch { alert('Sync failed. Check PriceLabs credentials on Render.'); }
+    setSyncing(false);
+  };
 
   const load = async () => {
     setLoading(true); setError('');
@@ -55,6 +72,21 @@ export function PricingTab({ token }:{ token:string }) {
     <div>
       <h1>Pricing Calendar</h1>
       <p className="sub">Live nightly rates from PriceLabs. Color = demand: green high, amber medium, blue low.</p>
+
+      {/* Sync bar */}
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20,padding:'12px 16px',background:'#f5f9fa',borderRadius:8,border:'1px solid #deeaec'}}>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:600,fontSize:14,color:'#0d5f6b'}}>PriceLabs Sync</div>
+          <div style={{fontSize:12,color:'#888',marginTop:2}}>
+            {syncStatus?.last_synced
+              ? `Last synced: ${new Date(syncStatus.last_synced+'Z').toLocaleString()} · ${syncStatus.cached_days} days cached`
+              : 'Not yet synced — click Sync Now to cache all prices'}
+          </div>
+        </div>
+        <button className="btn" style={{padding:'8px 18px',fontSize:13,whiteSpace:'nowrap'}} onClick={syncNow} disabled={syncing}>
+          {syncing ? 'Syncing…' : 'Sync Now'}
+        </button>
+      </div>
 
       {/* Stats */}
       {data.length>0 && (
