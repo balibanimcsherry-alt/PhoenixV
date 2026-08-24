@@ -73,18 +73,6 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     setPopoverPos({ top: rect.bottom + window.scrollY + 10, left: rect.left + window.scrollX });
   }, [open, inline]);
 
-  useEffect(() => {
-    if (inline || !open) return;
-    const fn = (e: MouseEvent) => {
-      const t = e.target as Node;
-      const portal = document.getElementById('rdp-portal');
-      if (triggerRef.current && !triggerRef.current.contains(t) && portal && !portal.contains(t))
-        setOpen(false);
-    };
-    document.addEventListener('mousedown', fn);
-    return () => document.removeEventListener('mousedown', fn);
-  }, [inline, open]);
-
   const isDisabled = (day: Date) => {
     if (day < today) return true;
     return blockedSet.has(format(day, 'yyyy-MM-dd'));
@@ -98,31 +86,29 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     const from = range?.from;
     const to = range?.to;
     onCheckin(from ? format(from, 'yyyy-MM-dd') : '');
-    // Only set checkout when it's a real range (different day)
     const validTo = to && from && to.getTime() !== from.getTime() ? to : undefined;
     onCheckout(validTo ? format(validTo, 'yyyy-MM-dd') : '');
     if (from && validTo && !inline) setOpen(false);
   };
 
+  // Render price below the day button inside the table cell (outside the 42px circle button)
+  const PricedDay = useCallback(({ day, modifiers, children, ...tdProps }: any) => {
+    const ds = format(day.date, 'yyyy-MM-dd');
+    const price = priceMap[ds];
+    return (
+      <td {...tdProps}>
+        {children}
+        {price && !modifiers.disabled && !modifiers.outside && (
+          <span className="rdp-day-price">${Math.round(price)}</span>
+        )}
+      </td>
+    );
+  }, [priceMap]);
+
   const label = checkin && checkout
     ? `${format(parseISO(checkin), 'MMM d')} – ${format(parseISO(checkout), 'MMM d')}`
     : checkin ? `${format(parseISO(checkin), 'MMM d')} → pick checkout`
     : 'Select dates';
-
-  // Custom day button that shows nightly price below the date number
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const PricedDayButton = useCallback(({ day, modifiers, children, ...buttonProps }: any) => {
-    const ds = format(day.date, 'yyyy-MM-dd');
-    const price = priceMap[ds];
-    return (
-      <button {...buttonProps}>
-        {children ?? day.date.getDate()}
-        {price && !modifiers.disabled && !modifiers.outside && (
-          <span className="rdp-day-price">${Math.round(price)}</span>
-        )}
-      </button>
-    );
-  }, [priceMap]);
 
   const picker = (
     <DayPicker
@@ -135,7 +121,7 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
       numberOfMonths={2}
       disabled={isDisabled}
       showOutsideDays={false}
-      components={{ DayButton: PricedDayButton } as any}
+      components={{ Day: PricedDay } as any}
     />
   );
 
@@ -148,9 +134,13 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
         <span className="rdp-trigger-value">{label}</span>
       </div>
       {open && createPortal(
-        <div id="rdp-portal" className="rdp-popover" style={{ top: popoverPos.top, left: popoverPos.left }}>
-          {picker}
-        </div>,
+        <>
+          {/* Full-page backdrop — clicking outside the calendar closes it */}
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onMouseDown={() => setOpen(false)} />
+          <div className="rdp-popover" style={{ top: popoverPos.top, left: popoverPos.left }}>
+            {picker}
+          </div>
+        </>,
         document.body
       )}
     </div>
