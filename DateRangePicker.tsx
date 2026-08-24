@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DayPicker } from 'react-day-picker';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO, addDays, addMonths } from 'date-fns';
 import 'react-day-picker/style.css';
 import { api } from './api';
 
@@ -41,6 +41,24 @@ interface Props {
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
+// Module-level price map so the stable CustomDayButton can read latest prices
+const _priceMapRef: { current: Record<string, number> } = { current: {} };
+
+function CustomDayButton({ day, modifiers, children, ...buttonProps }: any) {
+  const dateStr = format(day.date, 'yyyy-MM-dd');
+  const price = _priceMapRef.current[dateStr];
+  return (
+    <button {...buttonProps}>
+      {children ?? day.date.getDate()}
+      {price && !modifiers.disabled && !modifiers.outside && (
+        <span className="rdp-day-price">${Math.round(price)}</span>
+      )}
+    </button>
+  );
+}
+
+const COMPONENTS = { DayButton: CustomDayButton };
+
 export default function DateRangePicker({ checkin, checkout, onCheckin, onCheckout, inline }: Props) {
   const [open, setOpen] = useState(false);
   const [blockedSet, setBlockedSet] = useState<Set<string>>(new Set());
@@ -49,6 +67,22 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
   const triggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { loadBlocked().then(setBlockedSet); }, []);
+
+  // Fetch prices for the two visible months and update the shared ref
+  useEffect(() => {
+    const months = [month, addMonths(month, 1)];
+    Promise.all(
+      months.map(m =>
+        api<{ prices: { date: string; direct_price: number }[] }>(
+          `/api/pricing/calendar?year=${m.getFullYear()}&month=${m.getMonth() + 1}`
+        ).catch(() => ({ prices: [] }))
+      )
+    ).then(results => {
+      const map: Record<string, number> = {};
+      for (const r of results) for (const p of r.prices) map[p.date] = p.direct_price;
+      _priceMapRef.current = map;
+    });
+  }, [month]);
 
   useLayoutEffect(() => {
     if (!open || inline || !triggerRef.current) return;
@@ -81,8 +115,9 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     const from = range?.from;
     const to = range?.to;
     onCheckin(from ? format(from, 'yyyy-MM-dd') : '');
-    onCheckout(to ? format(to, 'yyyy-MM-dd') : '');
-    if (from && to && !inline) setOpen(false);
+    onCheckout(to && to > from! ? format(to, 'yyyy-MM-dd') : '');
+    // Only close when a real range (at least 1 night) is complete
+    if (from && to && to > from && !inline) setOpen(false);
   };
 
   const label = checkin && checkout
@@ -100,6 +135,7 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
       numberOfMonths={2}
       disabled={isDisabled}
       showOutsideDays={false}
+      components={COMPONENTS}
     />
   );
 

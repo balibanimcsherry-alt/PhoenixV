@@ -1122,6 +1122,17 @@ async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:
         daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
         return {'daily':daily,'year':year,'month':month}
 
+@app.get('/api/pricing/calendar')
+def public_pricing_calendar(year:int,month:int,db:Session=Depends(get_db)):
+    import calendar as _cal
+    _,days=_cal.monthrange(year,month)
+    start=f'{year}-{month:02d}-01'; end=f'{year}-{month:02d}-{days:02d}'
+    cached=db.query(DailyPrice).filter(DailyPrice.date>=start,DailyPrice.date<=end).all()
+    s=get_settings(db)
+    disc=s.direct_discount_percent/100
+    prices=[{'date':p.date,'price':round(p.price,2),'direct_price':round(p.price*(1-disc),0)} for p in cached]
+    return {'prices':prices,'discount_percent':s.direct_discount_percent}
+
 @app.get('/api/admin/pricing/sync-status')
 def pricing_sync_status(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     latest=db.query(DailyPrice).order_by(DailyPrice.synced_at.desc()).first()
