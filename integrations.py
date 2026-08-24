@@ -15,13 +15,13 @@ def _blocked_ranges(ical_text: str) -> list[tuple[date, date]]:
     """Return list of (start, end) exclusive-end blocked ranges from iCal text."""
     ranges = []
     in_event = False
-    dtstart = dtend = None
+    dtstart = dtend = status = None
     for line in ical_text.splitlines():
         line = line.strip()
         if line == 'BEGIN:VEVENT':
-            in_event = True; dtstart = dtend = None
+            in_event = True; dtstart = dtend = status = None
         elif line == 'END:VEVENT':
-            if in_event and dtstart and dtend and dtend > dtstart:
+            if in_event and dtstart and dtend and dtend > dtstart and status != 'CANCELLED':
                 ranges.append((dtstart, dtend))
             in_event = False
         elif in_event:
@@ -33,6 +33,8 @@ def _blocked_ranges(ical_text: str) -> list[tuple[date, date]]:
                 val = line.split(':', 1)[-1]
                 try: dtend = _parse_ical_date(val)
                 except Exception: pass
+            elif line.startswith('STATUS'):
+                status = line.split(':', 1)[-1].strip().upper()
     return ranges
 
 
@@ -92,6 +94,8 @@ def _parse_ical_events(ical_text: str) -> list[dict]:
                 current['summary'] = val.strip()
             elif key == 'DESCRIPTION':
                 current['raw_description'] = val.strip()
+            elif key == 'STATUS':
+                current['status'] = val.strip().upper()
     return events
 
 

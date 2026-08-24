@@ -840,6 +840,11 @@ async def _do_pms_sync(db: Session) -> int:
             uid = ev.get('uid')
             if not uid: continue
             scoped = f'{platform}:{uid}'
+            # Cancelled reservations: remove from DB so they don't block dates
+            if ev.get('status') == 'CANCELLED':
+                existing = db.query(IcalReservation).filter(IcalReservation.uid==scoped).first()
+                if existing: db.delete(existing)
+                continue
             ci, co = ev.get('checkin',''), ev.get('checkout','')
             if not ci or not co: continue
             try:
