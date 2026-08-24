@@ -22,7 +22,7 @@ from email_service import (send_booking_confirmation, send_owner_notification,
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 
 async def _pricelabs_sync_loop():
-    await asyncio.sleep(60)  # wait for DB to be ready
+    await asyncio.sleep(5)  # wait for DB to be ready
     while True:
         try:
             if settings.pricelabs_api_key and settings.pricelabs_listing_id:

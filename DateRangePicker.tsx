@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { DayPicker } from 'react-day-picker';
 import { format, parseISO, addDays, addMonths } from 'date-fns';
@@ -110,7 +110,8 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
     : 'Select dates';
 
   // Custom day button that shows nightly price below the date number
-  function PricedDayButton({ day, modifiers, children, ...buttonProps }: any) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const PricedDayButton = useCallback(({ day, modifiers, children, ...buttonProps }: any) => {
     const ds = format(day.date, 'yyyy-MM-dd');
     const price = priceMap[ds];
     return (
@@ -121,7 +122,7 @@ export default function DateRangePicker({ checkin, checkout, onCheckin, onChecko
         )}
       </button>
     );
-  }
+  }, [priceMap]);
 
   const picker = (
     <DayPicker
