@@ -1115,6 +1115,8 @@ async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:
         return {'daily':[],'error':'PriceLabs not configured — add PRICELABS_API_KEY and PRICELABS_LISTING_ID on Render'}
     # Don't request past dates — PriceLabs may reject them
     api_start=max(date.today(),date(year,month,1)).isoformat()
+    if api_start > end:  # Entire month is in the past
+        return {'daily':[],'year':year,'month':month}
     headers={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
     payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':api_start,'end_date':end}]}
     async with httpx.AsyncClient(timeout=15) as c:
@@ -1190,4 +1192,4 @@ if _dist.exists():
         pub = _public / full_path
         if pub.exists() and pub.is_file():
             return _FileResponse(str(pub))
-        return _FileResponse(str(_dist / 'index.html'))
+        return _FileResponse(str(_dist / 'index.html'), headers={'Cache-Control': 'no-cache, no-store, must-revalidate'})
