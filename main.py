@@ -1101,19 +1101,23 @@ def admin_financials(_:None=Depends(require_admin),year:int=0,db:Session=Depends
 
 # ── Pricing (PriceLabs) ─────────────────────────────────────────────────────
 @app.get('/api/admin/pricing')
-async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0):
+async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:Session=Depends(get_db)):
     import calendar as _cal
     if not year: year=date.today().year
     if not month: month=date.today().month
     _,days=_cal.monthrange(year,month)
     start=f'{year}-{month:02d}-01'; end=f'{year}-{month:02d}-{days:02d}'
+    cached=db.query(DailyPrice).filter(DailyPrice.date>=start,DailyPrice.date<=end).all()
+    if cached:
+        daily=[{'date':p.date,'price':p.price,'min_stay':p.min_stay,'demand_color':p.demand_color,'occupancy':p.occupancy} for p in cached]
+        return {'daily':daily,'year':year,'month':month}
     if not settings.pricelabs_api_key or not settings.pricelabs_listing_id:
         return {'daily':[],'error':'PriceLabs not configured'}
     headers={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
     payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':start,'end_date':end}]}
     async with httpx.AsyncClient(timeout=15) as c:
         r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=headers,json=payload)
-        if r.status_code>=400: return {'daily':[],'error':'PriceLabs API error'}
+        if r.status_code>=400: return {'daily':[],'error':f'PriceLabs API error ({r.status_code})'}
         results=r.json()
         daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
         return {'daily':daily,'year':year,'month':month}
