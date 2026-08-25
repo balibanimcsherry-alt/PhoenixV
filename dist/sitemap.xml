@@ -16,34 +16,24 @@
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://orangebeachstay.com/amenities</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://orangebeachstay.com/gallery</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://orangebeachstay.com/availability</loc>
+    <loc>https://orangebeachstay.com/book</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://orangebeachstay.com/reviews</loc>
+    <loc>https://orangebeachstay.com/book-direct-orange-beach</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://orangebeachstay.com/orange-beach-spring-break</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://orangebeachstay.com/about</loc>
+    <loc>https://orangebeachstay.com/amenities</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://orangebeachstay.com/contact</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://orangebeachstay.com/faq</loc>
@@ -54,6 +44,16 @@
     <loc>https://orangebeachstay.com/orange-beach-guide</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://orangebeachstay.com/gallery</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://orangebeachstay.com/reviews</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://orangebeachstay.com/things-to-do-orange-beach</loc>
@@ -76,6 +76,26 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://orangebeachstay.com/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://orangebeachstay.com/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://orangebeachstay.com/cancellation-policy</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://orangebeachstay.com/house-rules</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://orangebeachstay.com/blog</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
@@ -83,17 +103,17 @@
   <url>
     <loc>https://orangebeachstay.com/blog/best-things-to-do-orange-beach-with-kids</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://orangebeachstay.com/blog/orange-beach-vs-gulf-shores</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://orangebeachstay.com/blog/best-time-to-visit-orange-beach</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
   <url>
     <loc>https://orangebeachstay.com/blog/what-to-pack-orange-beach-vacation</loc>
@@ -103,6 +123,6 @@
   <url>
     <loc>https://orangebeachstay.com/blog/phoenix-v-resort-guide</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
 </urlset>

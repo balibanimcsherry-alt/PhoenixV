@@ -20,11 +20,18 @@ export default function BlogPost() {
         '@type': 'BlogPosting',
         headline: post.title,
         description: post.excerpt,
-        datePublished: post.date,
+        datePublished: post.dateISO || post.date,
+        dateModified: '2026-08-24',
         author: { '@type': 'Organization', name: 'Coastal Haven', url: 'https://orangebeachstay.com' },
-        publisher: { '@type': 'Organization', name: 'Coastal Haven', url: 'https://orangebeachstay.com' },
+        publisher: {
+          '@type': 'Organization',
+          name: 'Coastal Haven at Phoenix V',
+          url: 'https://orangebeachstay.com',
+          logo: { '@type': 'ImageObject', url: 'https://orangebeachstay.com/logo.svg' },
+        },
         url: `https://orangebeachstay.com/blog/${post.slug}`,
         image: `https://orangebeachstay.com${post.image || '/images/coast.jpg'}`,
+        mainEntityOfPage: { '@type': 'WebPage', '@id': `https://orangebeachstay.com/blog/${post.slug}` },
       }}
     />
     <Header />

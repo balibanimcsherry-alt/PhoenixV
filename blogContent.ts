@@ -4,6 +4,7 @@ export interface BlogPost {
   excerpt: string;
   category: string;
   date: string;
+  dateISO?: string;
   image?: string;
   content: string;
 }
@@ -15,7 +16,8 @@ export const BLOG_POSTS: BlogPost[] = [
     excerpt: 'Orange Beach is one of the best family beach destinations on the Gulf Coast. Here are the activities families love most, from dolphin cruises to Gulf State Park.',
     category: 'Family Travel',
     date: 'July 2025',
-    image: '/images/coast.jpg',
+    dateISO: '2025-07-01',
+    image: '/images/balcony.jpg',
     content: `
 <p>Orange Beach is genuinely one of the best family beach destinations in the Southeast. The water is warm and clear, the beaches are wide, and the range of activities — both on the beach and off — means you can fill a week without repeating yourself.</p>
 
@@ -54,7 +56,8 @@ export const BLOG_POSTS: BlogPost[] = [
     excerpt: 'Both are on the Alabama Gulf Coast, but Orange Beach and Gulf Shores have real differences. Here is an honest comparison to help you decide.',
     category: 'Planning',
     date: 'June 2025',
-    image: '/images/coast.jpg',
+    dateISO: '2025-06-01',
+    image: '/images/living-ocean.jpg',
     content: `
 <p>Orange Beach and Gulf Shores are neighboring Gulf Coast destinations separated by only a few miles, but they have meaningfully different characters. Here is an honest breakdown.</p>
 
@@ -79,6 +82,7 @@ export const BLOG_POSTS: BlogPost[] = [
     excerpt: 'Peak season, shoulder season, and off-season compared — when to go based on weather, crowds, and what you want from an Orange Beach trip.',
     category: 'Planning',
     date: 'May 2025',
+    dateISO: '2025-05-01',
     image: '/images/coast.jpg',
     content: `
 <p>Orange Beach has a long warm season by most standards — Gulf water temperatures are comfortable from May through October. Here's how the seasons break down.</p>
@@ -107,6 +111,7 @@ export const BLOG_POSTS: BlogPost[] = [
     excerpt: 'A practical packing list for an Orange Beach, Alabama vacation — organized by what you actually need and what the condo already provides.',
     category: 'Planning',
     date: 'April 2025',
+    dateISO: '2025-04-01',
     image: '/images/balcony.jpg',
     content: `
 <p>Packing smart for an Orange Beach vacation means knowing what the condo already provides so you don't overpack — and knowing what you'll actually need that won't be there.</p>
@@ -157,6 +162,7 @@ export const BLOG_POSTS: BlogPost[] = [
     excerpt: 'Everything you need to know about Phoenix V — the amenities, the location, the beach, the pools, and why it is one of the best family resorts on the Alabama Gulf Coast.',
     category: 'Property Guide',
     date: 'March 2025',
+    dateISO: '2025-03-01',
     image: '/images/balcony.jpg',
     content: `
 <p>Phoenix V at 24400 Perdido Beach Blvd in Orange Beach, Alabama is a full-service beachfront condominium resort directly on the Gulf of Mexico. Here is everything you need to know about the resort before you book.</p>

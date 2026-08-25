@@ -691,6 +691,7 @@ export default function Games() {
       title="Gulf Coast Games | Coastal Haven Orange Beach"
       description="Play Gulf Coast multiplayer games at Coastal Haven. Gulf Trivia, Crab Derby, Mullet Toss, and Gulf Bingo — fun for the whole family in Orange Beach."
       canonical="/games"
+      noindex
     />
     <Header />
     <main>

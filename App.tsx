@@ -23,6 +23,8 @@ import HouseRules from './HouseRules';
 import Blog from './Blog';
 import BlogPost from './BlogPost';
 import Games from './Games';
+import BookDirect from './BookDirect';
+import SpringBreak from './SpringBreak';
 import NotFound from './NotFound';
 import BackgroundMusic from './BackgroundMusic';
 import OceanAvatar from './OceanAvatar';
@@ -72,6 +74,8 @@ export default function App() {
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogPost />} />
       <Route path="/games" element={<Games />} />
+      <Route path="/book-direct-orange-beach" element={<BookDirect />} />
+      <Route path="/orange-beach-spring-break" element={<SpringBreak />} />
       <Route path="/caretaker" element={<CaretakerDashboard />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

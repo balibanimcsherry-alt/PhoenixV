@@ -9,12 +9,18 @@ import LocalGuide from './LocalGuide';
 import { amenities, reviews } from './content';
 
 export default function Home(){
-  return <div><Header/>
+  return <div>
+    <SEOMeta
+      title="Orange Beach Vacation Rental | 3BR Beachfront Condo | Coastal Haven at Phoenix V"
+      description="Book direct and save. Coastal Haven is a 3-bedroom Gulf-front condo at Phoenix V — 14th floor, Orange Beach, Alabama. Sleeps 10, indoor pool, direct beach access. No OTA fees."
+      canonical="/"
+    />
+    <Header/>
     <main>
       <section className="hero">
         <img src="/images/balcony.jpg" alt="Gulf-front balcony at Coastal Haven" className="hero-img-base"/>
         <div className="hero-shade"/>
-        <div className="hero-copy"><div className="eyebrow">PHOENIX V • ORANGE BEACH, ALABAMA</div><h1>Your family’s Gulf-front escape.</h1><p>Wake up above the sugar-white sand in a relaxed 14th-floor coastal condo made for reconnecting, unwinding and making beach memories.</p><div className="hero-pills"><span><BedDouble/>3 bedrooms</span><span><Bath/>2 baths</span><span><Users/>Up to 10 guests</span><span><Waves/>Oceanfront</span></div></div>
+        <div className="hero-copy"><div className="eyebrow">PHOENIX V • ORANGE BEACH, ALABAMA</div><h1>Orange Beach Beachfront Vacation Rental for Families</h1><p>Wake up above the sugar-white sand in a relaxed 14th-floor Gulf-front condo made for reconnecting, unwinding and making beach memories.</p><div className="hero-pills"><span><BedDouble/>3 bedrooms</span><span><Bath/>2 baths</span><span><Users/>Up to 10 guests</span><span><Waves/>Oceanfront</span></div></div>
 <BookingBar/>
       </section>
 
@@ -22,7 +28,7 @@ export default function Home(){
 
       <section className="trust-strip"><div><Star/>Guest favorite</div><div><ShieldCheck/>Professionally cleaned</div><div><Heart/>Family focused</div><div><MapPin/>Direct beach access</div></section>
 
-      <section id="stay" className="split-section"><div className="split-copy"><div className="eyebrow dark">COASTAL HAVEN</div><h2>Your coastal escape, right on the Gulf.</h2><p>Coastal Haven is a spacious 3-bedroom, 2-bath oceanfront condo at Phoenix V. The primary suite opens to the balcony, the kitchen is ready for family meals, and the open living room keeps everyone together without feeling crowded.</p><div className="stat-grid"><div><strong>14th</strong><span>floor</span></div><div><strong>3</strong><span>bedrooms</span></div><div><strong>4</strong><span>beds</span></div><div><strong>10</strong><span>max guests</span></div></div></div><img src="/images/living-ocean.jpg" alt="Living room with Gulf view"/></section>
+      <section id="stay" className="split-section"><div className="split-copy"><div className="eyebrow dark">COASTAL HAVEN</div><h2>3-Bedroom Beachfront Condo on the Alabama Gulf Coast</h2><p>Coastal Haven is a spacious 3-bedroom, 2-bath oceanfront condo at Phoenix V. The primary suite opens to the balcony, the kitchen is ready for family meals, and the open living room keeps everyone together without feeling crowded.</p><div className="stat-grid"><div><strong>14th</strong><span>floor</span></div><div><strong>3</strong><span>bedrooms</span></div><div><strong>4</strong><span>beds</span></div><div><strong>10</strong><span>max guests</span></div></div></div><img src="/images/living-ocean.jpg" alt="Living room with Gulf view"/></section>
 
       <section id="amenities" className="section sand"><div className="section-head"><div><div className="eyebrow dark">RESORT DAYS, EASY NIGHTS</div><h2>Everything families want in one place.</h2></div><p>Beach time, pool time, quiet mornings and easy dinners — without getting back in the car.</p></div>
         <div className="amenity-feature-grid"><article><Baby/><h3>Made for families</h3><p>Splash pad, shallow play areas and roomy living spaces.</p></article><article><Waves/><h3>Steps from the sand</h3><p>Direct beachfront access and outdoor showers.</p></article><article><Dumbbell/><h3>Stay active</h3><p>Fitness center, tennis, racquetball and sauna.</p></article><article><Flame/><h3>Slow evenings</h3><p>Hot tubs, grills and a private balcony above the Gulf.</p></article></div>
@@ -34,9 +40,9 @@ export default function Home(){
         <PhotoGallery/>
       </section>
 
-      <section className="section book-direct"><div><div className="eyebrow">BOOK DIRECT</div><h2>More beach. Less booking fee.</h2><p>Direct website rates are designed to be about 10% below comparable Airbnb pricing when enabled by the owner. Exact totals, taxes and fees are shown before checkout.</p></div><a className="btn light" href="/book">See your dates</a></section>
+      <section className="section book-direct"><div><div className="eyebrow">BOOK DIRECT</div><h2>Book Direct and Save — No Airbnb or VRBO Fees</h2><p>Direct website rates are designed to be about 10% below comparable Airbnb pricing when enabled by the owner. Exact totals, taxes and fees are shown before checkout.</p></div><a className="btn light" href="/book">See your dates</a></section>
 
-      <section id="reviews" className="section"><div className="section-head"><div><div className="eyebrow dark">GUEST LOVE</div><h2>Easy stays make the best memories.</h2></div></div><div className="review-grid">{reviews.map(r=><article key={r.source}><div className="stars">★★★★★</div><blockquote>{r.text}</blockquote><div><strong>{r.source}</strong><span>{r.rating}</span></div></article>)}</div></section>
+      <section id="reviews" className="section"><div className="section-head"><div><div className="eyebrow dark">GUEST LOVE</div><h2>What Our Guests Say About Coastal Haven</h2></div></div><div className="review-grid">{reviews.map(r=><article key={r.source}><div className="stars">★★★★★</div><blockquote>{r.text}</blockquote><div><strong>{r.source}</strong><span>{r.rating}</span></div></article>)}</div></section>
 
       <LocalGuide />
 

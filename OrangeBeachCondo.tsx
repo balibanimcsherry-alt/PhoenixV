@@ -7,8 +7,8 @@ import BookingBar from './BookingBar';
 export default function OrangeBeachCondo() {
   return <>
     <SEOMeta
-      title="3-Bedroom Orange Beach Condo | Coastal Haven at Phoenix V"
-      description="Coastal Haven is a beachfront 3-bedroom, 2-bath condo on the 14th floor of Phoenix V in Orange Beach, Alabama. Gulf views, direct beach access, indoor pool. Book direct and save."
+      title="3-Bedroom Orange Beach Condo for Rent | Gulf-Front, Sleeps 10 | Coastal Haven"
+      description="Coastal Haven is a beachfront 3-bedroom, 2-bath condo on the 14th floor of Phoenix V in Orange Beach, Alabama. Gulf views, direct beach access, indoor pool. Sleeps 10. Book direct and save."
       canonical="/orange-beach-condo"
       schema={{
         '@context': 'https://schema.org',
@@ -42,8 +42,8 @@ export default function OrangeBeachCondo() {
             <a href="/">Home</a> <span>›</span> <span>The Condo</span>
           </nav>
           <div className="eyebrow">ORANGE BEACH, ALABAMA</div>
-          <h1>Coastal Haven</h1>
-          <p>A 3-bedroom Gulf-front condo at Phoenix V — 14th floor, direct beach access, and an unobstructed view of the Gulf of Mexico.</p>
+          <h1>3-Bedroom Gulf-Front Condo — Orange Beach, Alabama</h1>
+          <p>Coastal Haven at Phoenix V — 14th floor, direct beach access, and an unobstructed view of the Gulf of Mexico. Sleeps up to 10 guests.</p>
           <div className="hero-pills">
             <span>{PROPERTY.bedrooms} Bedrooms</span>
             <span>{PROPERTY.bathrooms} Baths</span>
