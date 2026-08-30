@@ -356,6 +356,118 @@ function BookingsTab({ bookings, headers, load }: {
   </>;
 }
 
+type Campaign = {
+  id: string; emoji: string; name: string; timing: string;
+  subject: string; headline: string; body_html: string;
+  sent_at: string | null; recipient_count: number;
+};
+
+function MarketingTab({ headers }: { headers: () => Record<string, string> }) {
+  const [campaigns, setCampaigns] = React.useState<Campaign[]>([]);
+  const [guestCount, setGuestCount] = React.useState(0);
+  const [sending, setSending] = React.useState<string | null>(null);
+  const [msg, setMsg] = React.useState<Record<string, string>>({});
+  const [preview, setPreview] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    api<{ campaigns: Campaign[]; guest_email_count: number }>(
+      '/api/admin/marketing/campaigns', { headers: headers() }
+    ).then(r => { setCampaigns(r.campaigns); setGuestCount(r.guest_email_count); }).catch(() => {});
+  }, []);
+
+  async function send(c: Campaign) {
+    if (!confirm(`Send "${c.name}" to all ${guestCount} guests with email addresses?\n\nThis will send immediately and cannot be undone.`)) return;
+    setSending(c.id);
+    setMsg(m => ({ ...m, [c.id]: '' }));
+    try {
+      const r = await api<{ sent: number; failed: number }>(`/api/admin/marketing/campaigns/${c.id}/send`, { method: 'POST', headers: headers() });
+      setMsg(m => ({ ...m, [c.id]: `✓ Sent to ${r.sent} guest${r.sent !== 1 ? 's' : ''}${r.failed ? ` (${r.failed} failed)` : ''}` }));
+      setCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, sent_at: new Date().toISOString(), recipient_count: r.sent } : x));
+    } catch {
+      setMsg(m => ({ ...m, [c.id]: '✗ Send failed — check server logs' }));
+    } finally {
+      setSending(null);
+    }
+  }
+
+  return (
+    <div style={{ padding: '28px 24px', maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ margin: 0, color: '#0a4f5e', fontSize: 22, fontWeight: 800 }}>Email Marketing</h2>
+          <p style={{ margin: '4px 0 0', color: '#666', fontSize: 13 }}>
+            {guestCount} guest{guestCount !== 1 ? 's' : ''} with email addresses in database
+          </p>
+        </div>
+        <div style={{ background: '#e6f6f8', border: '1px solid #a8d8e4', borderRadius: 10, padding: '8px 18px', fontSize: 13, color: '#0a4f5e', fontWeight: 700 }}>
+          ⚠️ All sends require your approval
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 18 }}>
+        {campaigns.map(c => (
+          <div key={c.id} style={{ background: '#fff', border: '1.5px solid #d0eaf0', borderRadius: 16, padding: '22px 24px', boxShadow: '0 2px 12px rgba(10,79,94,.07)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+              <span style={{ fontSize: 32, lineHeight: 1 }}>{c.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#0a4f5e' }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{c.timing}</div>
+              </div>
+              {c.sent_at && (
+                <div style={{ fontSize: 10, color: '#28704e', fontWeight: 700, background: '#edfaf3', border: '1px solid #b6e8cc', borderRadius: 6, padding: '3px 8px', whiteSpace: 'nowrap' }}>
+                  ✓ Sent {new Date(c.sent_at).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+
+            <div style={{ fontSize: 13, color: '#334', lineHeight: 1.6, marginBottom: 14 }}>
+              <strong>Subject:</strong> {c.subject}
+            </div>
+
+            <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, marginBottom: 16 }}
+              dangerouslySetInnerHTML={{ __html: c.body_html.replace(/<p>/g, '<p style="margin:0 0 8px">') }} />
+
+            {preview === c.id && (
+              <div style={{ background: '#f6fbfc', border: '1px solid #c8e8f0', borderRadius: 10, padding: '14px 16px', marginBottom: 14, fontSize: 12, color: '#334', lineHeight: 1.7 }}>
+                <strong>Email preview:</strong><br />
+                <em>To:</em> guest@example.com<br />
+                <em>Subject:</em> {c.subject}<br />
+                <em>Headline:</em> {c.headline}<br />
+                <em>CTA:</em> Book Now → orangebeachstay.com/book
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setPreview(preview === c.id ? null : c.id)}
+                style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #0a4f5e', background: '#f0fafb', color: '#0a4f5e', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                {preview === c.id ? 'Hide preview' : '👁 Preview'}
+              </button>
+              <button
+                disabled={sending === c.id || guestCount === 0}
+                onClick={() => send(c)}
+                style={{ padding: '6px 18px', borderRadius: 8, border: 'none', background: sending === c.id ? '#aaa' : '#0a4f5e', color: '#fff', fontSize: 12, fontWeight: 800, cursor: sending === c.id || guestCount === 0 ? 'not-allowed' : 'pointer' }}>
+                {sending === c.id ? 'Sending…' : `✉ Approve & Send to ${guestCount} guests`}
+              </button>
+              {msg[c.id] && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: msg[c.id].startsWith('✓') ? '#28704e' : '#c0392b' }}>
+                  {msg[c.id]}
+                </span>
+              )}
+            </div>
+
+            {c.sent_at && (
+              <div style={{ marginTop: 10, fontSize: 11, color: '#888' }}>
+                Last sent {new Date(c.sent_at).toLocaleString()} · {c.recipient_count} recipients
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const [token, setToken] = useState(localStorage.getItem('adminToken') || '');
   const [username, setUsername] = useState('admin');
@@ -417,7 +529,7 @@ export default function Admin() {
   const avgBooking = confirmedBookings.length ? totalRevenue / confirmedBookings.length : 0;
   const convRate = analytics?.unique_sessions ? ((analytics.funnel?.find((f: any) => f.step === 'Booking Confirmed')?.count || 0) / analytics.unique_sessions * 100).toFixed(1) : '0.0';
 
-  const tabs = ['overview', 'calendar', 'pms', 'tasks', 'financials', 'pricing', 'property', 'reviews', 'messages', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'settings'];
+  const tabs = ['overview', 'calendar', 'pms', 'tasks', 'financials', 'pricing', 'property', 'reviews', 'messages', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'marketing', 'settings'];
 
   return (
     <main className="admin-page">
@@ -790,6 +902,9 @@ export default function Admin() {
             )) : <p style={{ color: '#aaa' }}>No messages yet.</p>}
           </SectionCard>
         </>}
+
+        {/* ── MARKETING ── */}
+        {tab === 'marketing' && <MarketingTab headers={headers} />}
 
         {/* ── SETTINGS ── */}
         {tab === 'settings' && <>

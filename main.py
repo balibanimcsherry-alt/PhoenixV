@@ -11,7 +11,7 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -20,8 +20,22 @@ from email_service import send_ota_reservation_notification
 from email_reader import fetch_ota_guest_info
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
-    preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request)
+    preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request,
+    send_marketing_campaign)
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
+
+_MARKETING_CAMPAIGNS = [
+    {'id':'summer_peak','emoji':'🌊','name':'Summer Peak Season','timing':'Best sent: Feb–Apr','subject':'Your Summer Beach Escape Awaits 🌊','headline':'Summer at the Gulf Is Almost Here','body_html':'<p>The emerald waters are calling. June, July, and August at Coastal Haven fill up fast — and past guests get first pick.</p><p>Picture yourself on our 14th-floor balcony watching the sunrise over the Gulf, spending lazy days on the sand, and ending evenings with the best seafood Orange Beach has to offer.</p><p>Our 3-bedroom beachfront condo sleeps 8 and has everything your family needs for the perfect summer escape.</p>'},
+    {'id':'july4','emoji':'🎆','name':'4th of July Special','timing':'Best sent: May–Jun','subject':'Celebrate 4th of July on the Gulf 🎆','headline':'Fireworks Over the Gulf of Mexico','body_html':'<p>There is no better place to watch fireworks than from a 14th-floor beachfront balcony. Join us for the ultimate Fourth of July celebration in Orange Beach.</p><p>The Gulf sparkles, the sky lights up, and the beach is electric with summer energy. Coastal Haven is your front-row seat.</p><p>July 4th dates go fast — secure yours now.</p>'},
+    {'id':'memorial_day','emoji':'🏖️','name':'Memorial Day Weekend','timing':'Best sent: Mar–Apr','subject':'Memorial Day on the Beach — Book Your Long Weekend 🏖️','headline':'Kick Off Summer the Right Way','body_html':'<p>Memorial Day weekend marks the start of beach season in Orange Beach — warm water, sunny skies, and the Gulf at its best.</p><p>Spend the long weekend at Coastal Haven: morning coffee on the balcony, afternoons in the water, evenings exploring the best restaurants on the Wharf.</p><p>This is one of our most popular weekends. Availability is limited.</p>'},
+    {'id':'labor_day','emoji':'🌅','name':'Labor Day Weekend','timing':'Best sent: Jun–Jul','subject':'Last Chance for Summer Sun — Labor Day Weekend 🌅','headline':'One Last Summer Hurrah','body_html':'<p>Labor Day weekend at the Gulf is magic — the water is its warmest, the crowds have thinned, and Orange Beach is at its most relaxed.</p><p>Coastal Haven is the perfect spot to soak it all in before fall arrives. 14th-floor views, private balcony, three full bedrooms for the whole crew.</p><p>Don\'t let summer slip away without one more trip to the beach.</p>'},
+    {'id':'spring_break','emoji':'🌸','name':'Spring Break','timing':'Best sent: Jan–Feb','subject':'Spring Break at the Beach — Limited Dates Available 🌸','headline':'Spring Break Done Right','body_html':'<p>Trade the classroom for the coastline. Spring break at Coastal Haven means warm Gulf breezes, crystal-clear water, and memories your family will talk about for years.</p><p>Our 3-bedroom beachfront condo is perfect for families — plenty of space, a full kitchen, and the beach right outside your door.</p><p>March and April dates book quickly. Lock in yours before they\'re gone.</p>'},
+    {'id':'fall_escape','emoji':'🍂','name':'Fall Beach Escape','timing':'Best sent: Aug–Sep','subject':'Fall at the Gulf — Warm Days, Quiet Beaches 🍂','headline':'The Best-Kept Secret: Fall in Orange Beach','body_html':'<p>September and October are our favorite months on the Gulf. The water is still warm, the beaches are peaceful, and rates are better than peak summer.</p><p>If you\'ve only visited in summer, fall at Coastal Haven is a revelation — long walks on uncrowded sand, spectacular sunsets, and the full Orange Beach experience without the crowds.</p><p>This is the Gulf Coast\'s best-kept secret. Come see why.</p>'},
+    {'id':'thanksgiving','emoji':'🦃','name':'Thanksgiving Getaway','timing':'Best sent: Sep–Oct','subject':'Thanksgiving at the Beach 🦃 Skip the Cold This Year','headline':'Give Thanks With Sand Between Your Toes','body_html':'<p>Why spend Thanksgiving in a cold city when you could be on a warm Gulf Coast beach? Coastal Haven has everything you need for a beach Thanksgiving your family will never forget.</p><p>Full kitchen for holiday cooking, three bedrooms for the whole family, and a 14th-floor balcony with the kind of view that puts everyone in a grateful mood.</p><p>Orange Beach in November is stunning — and availability is usually good. Book early to be sure.</p>'},
+    {'id':'christmas_nye','emoji':'🎄','name':'Christmas & New Year','timing':'Best sent: Oct–Nov','subject':'Ring in the New Year at the Gulf 🎄✨','headline':'Holiday Magic on the Gulf Coast','body_html':'<p>Christmas and New Year\'s at Coastal Haven is something special. The Gulf at night, the twinkling lights of Orange Beach, a cozy 14th-floor condo with ocean views — it\'s a holiday your family will want to repeat every year.</p><p>Our full kitchen handles the holiday feast. Our balcony handles the New Year\'s fireworks. All you bring is the family.</p><p>Holiday dates go quickly. Don\'t wait.</p>'},
+    {'id':'valentines','emoji':'❤️','name':"Valentine's Weekend",'timing':'Best sent: Dec–Jan','subject':"Valentine's Weekend on the Gulf ❤️ A Romantic Escape",'headline':'The Most Romantic View in Alabama','body_html':'<p>Imagine watching the Gulf sunrise with someone you love — coffee in hand, balcony to yourselves, nothing but water and sky as far as you can see.</p><p>Coastal Haven is Orange Beach\'s most romantic retreat. 14th floor, beachfront, private balcony, and a king suite designed for couples.</p><p>Valentine\'s weekend is one of our most popular times for couples. Book early for the best dates.</p>'},
+    {'id':'last_minute','emoji':'⚡','name':'Last Minute Deal','timing':'Send anytime you have open dates','subject':'⚡ Special Offer — Last Minute Availability at Coastal Haven','headline':'A Special Offer Just for You','body_html':'<p>We have some last-minute availability at Coastal Haven and wanted to offer it to our past guests first before it opens up publicly.</p><p>As always, direct bookings save you the platform fees — and you\'ll be dealing directly with us, not a third-party app.</p><p>If the timing works, we\'d love to have you back. Reach out directly or book online and mention this email for a special rate.</p>'},
+]
 
 async def _pricelabs_sync_loop():
     await asyncio.sleep(5)  # wait for DB to be ready
@@ -1426,6 +1440,49 @@ async def sync_pricing(_:None=Depends(require_admin),db:Session=Depends(get_db))
         count+=1
     db.commit()
     return {'synced':count,'synced_at':now.isoformat()}
+
+@app.get('/api/admin/marketing/campaigns')
+def marketing_campaigns(_:None=Depends(require_admin), db:Session=Depends(get_db)):
+    logs = {row.campaign_id: row for row in db.query(MarketingLog).all()}
+    # Count guests with emails
+    direct_emails = {b.email for b in db.query(BookingRequest).all() if b.email}
+    ota_emails = {r.guest_email for r in db.query(IcalReservation).all() if r.guest_email}
+    total = len(direct_emails | ota_emails)
+    result = []
+    for c in _MARKETING_CAMPAIGNS:
+        log = logs.get(c['id'])
+        result.append({**c, 'sent_at': log.sent_at.isoformat() if log else None, 'recipient_count': log.recipient_count if log else 0})
+    return {'campaigns': result, 'guest_email_count': total}
+
+@app.post('/api/admin/marketing/campaigns/{campaign_id}/send')
+async def send_marketing(campaign_id:str, _:None=Depends(require_admin), db:Session=Depends(get_db)):
+    campaign = next((c for c in _MARKETING_CAMPAIGNS if c['id'] == campaign_id), None)
+    if not campaign:
+        raise HTTPException(404, 'Campaign not found')
+    # Collect all unique guest emails
+    direct = {(b.email, b.guest_name or 'Valued Guest') for b in db.query(BookingRequest).all() if b.email}
+    ota = {(r.guest_email, r.guest_name or 'Valued Guest') for r in db.query(IcalReservation).all() if r.guest_email}
+    recipients = list(direct | ota)
+    if not recipients:
+        raise HTTPException(400, 'No guest emails in database')
+    sent = 0
+    failed = 0
+    for email_addr, name in recipients:
+        try:
+            ok = await asyncio.to_thread(send_marketing_campaign, campaign, email_addr, name)
+            if ok: sent += 1
+            else: failed += 1
+        except Exception as e:
+            print(f'Marketing send failed for {email_addr}: {e}')
+            failed += 1
+    # Log this send
+    existing = db.query(MarketingLog).filter(MarketingLog.campaign_id == campaign_id).first()
+    if existing:
+        existing.sent_at = datetime.utcnow(); existing.recipient_count = sent
+    else:
+        db.add(MarketingLog(campaign_id=campaign_id, recipient_count=sent))
+    db.commit()
+    return {'sent': sent, 'failed': failed, 'total': len(recipients)}
 
 from fastapi.staticfiles import StaticFiles as _StaticFiles
 from fastapi.responses import FileResponse as _FileResponse, RedirectResponse as _RedirectResponse

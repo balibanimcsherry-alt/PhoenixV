@@ -886,6 +886,44 @@ def preview_checkout_reminder() -> str:
     return _shell(IMG_HERO_SUNSET, 'linear-gradient(180deg,rgba(80,30,5,.12) 0%,rgba(60,20,5,.65) 100%)',
         'Check-out Tomorrow', 'Thanks for staying — see you next time!', f'Check-out by 10:00 AM · {co}', body)
 
+# ════════════════════════════════════════════════════════════════════════════
+# MARKETING CAMPAIGNS
+# ════════════════════════════════════════════════════════════════════════════
+def _marketing_html(campaign: dict, guest_name: str) -> str:
+    first = (guest_name or 'Valued Guest').split()[0]
+    headline = campaign['headline']
+    body_html = campaign['body_html']
+    year = datetime.now().year
+    body = f"""
+<p class="greeting">Hi {first},</p>
+
+{body_html}
+
+<div class="cta">
+  <a class="cta-btn" href="{PROPERTY_URL}/book">Book Now &rarr;</a>
+</div>
+
+<p style="text-align:center;font-size:12px;color:#8aacb4;margin-top:20px;line-height:1.7">
+  You're receiving this because you've stayed at or inquired about Coastal Haven.<br>
+  Reply to unsubscribe.
+</p>"""
+    return _shell(IMG_HERO_TEAL,
+        f'linear-gradient(160deg,rgba(5,30,40,.12) 0%,{_C_OCEAN}cc 100%)',
+        headline, PROPERTY_NAME,
+        'Orange Beach, AL &nbsp;&middot;&nbsp; Gulf-front &nbsp;&middot;&nbsp; 14th Floor',
+        body)
+
+def send_marketing_campaign(campaign: dict, to_email: str, guest_name: str) -> bool:
+    if not to_email:
+        return False
+    try:
+        html = _marketing_html(campaign, guest_name)
+        return _send(to_email, campaign['subject'], html)
+    except Exception as e:
+        log.error('Marketing campaign send failed to %s: %s', to_email, e)
+        return False
+
+
 def preview_review_request() -> str:
     dummy = {'id': 1001, 'email': '', 'guest_name': 'Sarah & Michael', 'checkin': '2025-09-12', 'checkout': '2025-09-19'}
     name = dummy['guest_name']; first = name.split()[0]; ref = f"#CHV-{str(dummy['id']).zfill(4)}"
