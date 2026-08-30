@@ -137,12 +137,13 @@ function BookingsTab({ bookings, headers, load }: {
 
       {filtered.length === 0
         ? <p style={{color:'#888',padding:'20px 0'}}>No reservations.</p>
-        : <table className="admin-table" style={{fontSize:13}}>
+        : <div style={{overflowX:'auto'}}>
+          <table className="admin-table" style={{fontSize:13,minWidth:800}}>
           <thead>
             <tr>
-              <th>Source</th><th>Guest</th><th>Phone</th><th>Email</th>
+              <th>Platform</th><th>Guest name</th><th>Contact</th>
               <th>Check-in</th><th>Check-out</th><th>Nights</th>
-              <th>Total</th><th>Status</th><th>Email</th><th></th>
+              <th>Total</th><th>Status</th><th>Notified</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -150,25 +151,34 @@ function BookingsTab({ bookings, headers, load }: {
               const nights = Math.round((new Date(b.checkout).getTime()-new Date(b.checkin).getTime())/86400000);
               const open   = expanded === b.id;
               const isDirect = b.source === 'direct';
-              const hasMissing = !b.guest_name || !b.email || !b.phone || (isDirect && !b.address);
+              const otaNote = `via ${SOURCE_LABELS[b.source]||b.source} app`;
               return <React.Fragment key={b.id}>
-                <tr style={{cursor:'pointer',background:open?'#f0f9fa':hasMissing?'#fffaf8':undefined}}
+                <tr style={{cursor:'pointer',background:open?'#f0f9fa':undefined}}
                     onClick={()=>setExpanded(open?null:b.id)}>
                   <td><SourceBadge source={b.source}/></td>
-                  <td>{b.guest_name||<span style={{color:'#c0392b',fontWeight:600}}>Unknown</span>}</td>
-                  <td style={{fontSize:12}}>{b.phone||<span style={{color:'#aaa',fontSize:11}}>—</span>}</td>
-                  <td style={{fontSize:12}}>{b.email?<a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a>:<span style={{color:'#aaa',fontSize:11}}>—</span>}</td>
-                  <td>{b.checkin}</td>
-                  <td>{b.checkout}</td>
-                  <td>{nights}</td>
-                  <td>{isDirect?<strong>${b.total.toFixed(2)}</strong>:<span style={{color:'#aaa',fontSize:11}}>OTA</span>}</td>
+                  <td>
+                    <div style={{fontWeight:600}}>{b.guest_name||<span style={{color:'#aaa',fontStyle:'italic',fontWeight:400}}>Not shared</span>}</div>
+                    {isDirect && b.guests && <div style={{fontSize:11,color:'#888'}}>{b.guests} guest{b.guests!==1?'s':''}</div>}
+                  </td>
+                  <td>
+                    {b.phone
+                      ? <div><a href={`tel:${b.phone}`} style={{color:'#0d5f6b',fontWeight:600}} onClick={e=>e.stopPropagation()}>📞 {b.phone}</a></div>
+                      : <div style={{color:'#aaa',fontSize:11}}>{isDirect?'No phone':otaNote}</div>}
+                    {b.email
+                      ? <div style={{marginTop:2}}><a href={`mailto:${b.email}`} style={{color:'#0d5f6b',fontSize:12}} onClick={e=>e.stopPropagation()}>✉ {b.email}</a></div>
+                      : !b.phone && <div style={{color:'#aaa',fontSize:11}}>{isDirect?'No email':''}</div>}
+                  </td>
+                  <td style={{fontWeight:500}}>{b.checkin}</td>
+                  <td style={{fontWeight:500}}>{b.checkout}</td>
+                  <td style={{textAlign:'center'}}>{nights}</td>
+                  <td>{isDirect?<strong>${b.total.toFixed(2)}</strong>:<span style={{color:'#aaa',fontSize:11}}>OTA rate</span>}</td>
                   <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
-                  <td>{b.email_sent?<span style={{color:'#28704e',fontWeight:700}}>✓</span>:<span style={{color:'#bbb'}}>—</span>}</td>
+                  <td style={{textAlign:'center'}}>{b.email_sent?<span style={{color:'#28704e',fontWeight:700}}>✓</span>:<span style={{color:'#bbb'}}>—</span>}</td>
                   <td onClick={e=>e.stopPropagation()}>
                     {isDirect && b.status !== 'cancelled' && (
                       <button style={{fontSize:11,padding:'3px 8px',background:'#fde7e5',border:'1px solid #f5c2c0',borderRadius:5,color:'#a74840',cursor:'pointer'}}
                         onClick={async()=>{
-                          if(!confirm(`Cancel this booking?`))return;
+                          if(!confirm('Cancel this booking?'))return;
                           await api(`/api/admin/bookings/${b.db_id}/status`,{method:'PATCH',headers:headers(),body:JSON.stringify({status:'cancelled'})});
                           load();
                         }}>Cancel</button>
@@ -176,34 +186,46 @@ function BookingsTab({ bookings, headers, load }: {
                   </td>
                 </tr>
                 {open&&(
-                  <tr style={{background:'#f5fbfc'}}>
-                    <td colSpan={11} style={{padding:'16px 20px'}}>
-                      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12,fontSize:13}}>
-                        {[
-                          ['Guest name',  b.guest_name,  null],
-                          ['Email',       b.email,       b.email?`mailto:${b.email}`:null],
-                          ['Phone',       b.phone,       b.phone?`tel:${b.phone}`:null],
-                          ...(isDirect?[['Home address', b.address, null] as [string,string,string|null]]:[] as [string,string,string|null][]),
-                          ['Check-in',   b.checkin,     null],
-                          ['Check-out',  b.checkout,    null],
-                          ['Nights',     String(nights), null],
-                          ...(isDirect?[
-                            ['Guests',   String(b.guests), null] as [string,string,string|null],
-                            ['Total',    `$${b.total.toFixed(2)}`, null] as [string,string,string|null],
-                          ]:[]),
-                          ['Booked on',  b.created_at.slice(0,10), null],
-                        ].map(([label,val,href])=>(
-                          <div key={label as string} style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                            <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>{label}</div>
-                            <div style={{fontWeight:500}}>
-                              {href
-                                ? <a href={href as string} style={{color:'#0d5f6b',fontWeight:600}}>{val}</a>
-                                : missingTag(val as string||'')}
-                            </div>
-                          </div>
-                        ))}
+                  <tr style={{background:'#f0f9fa'}}>
+                    <td colSpan={10} style={{padding:'16px 20px'}}>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(190px,1fr))',gap:10,fontSize:13}}>
+                        {/* Platform always shown first */}
+                        <div style={{padding:'10px 14px',background:SOURCE_COLORS[b.source]||'#555',borderRadius:8,color:'#fff'}}>
+                          <div style={{fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,opacity:.8,marginBottom:4}}>Booked via</div>
+                          <div style={{fontWeight:800,fontSize:16}}>{SOURCE_LABELS[b.source]||b.source}</div>
+                          {!isDirect && <div style={{fontSize:10,opacity:.75,marginTop:3}}>Contact guest via {SOURCE_LABELS[b.source]} app</div>}
+                        </div>
+                        <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Guest name</div>
+                          <div style={{fontWeight:600}}>{b.guest_name||<span style={{color:'#aaa',fontStyle:'italic'}}>Not shared by platform</span>}</div>
+                        </div>
+                        <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Phone</div>
+                          {b.phone
+                            ? <a href={`tel:${b.phone}`} style={{color:'#0d5f6b',fontWeight:600}}>{b.phone}</a>
+                            : <span style={{color:'#aaa',fontSize:12,fontStyle:'italic'}}>{isDirect?'Not provided':'Not in iCal feed'}</span>}
+                        </div>
+                        <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Email</div>
+                          {b.email
+                            ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b',fontWeight:600,wordBreak:'break-all'}}>{b.email}</a>
+                            : <span style={{color:'#aaa',fontSize:12,fontStyle:'italic'}}>{isDirect?'Not provided':'Not in iCal feed'}</span>}
+                        </div>
+                        {isDirect && <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Home address</div>
+                          <div style={{fontWeight:500}}>{b.address||<span style={{color:'#aaa',fontStyle:'italic'}}>Not provided</span>}</div>
+                        </div>}
+                        <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Stay</div>
+                          <div style={{fontWeight:600}}>{b.checkin} → {b.checkout}</div>
+                          <div style={{color:'#888',fontSize:12}}>{nights} night{nights!==1?'s':''}{isDirect&&b.guests?` · ${b.guests} guest${b.guests!==1?'s':''}`:''}</div>
+                        </div>
+                        {isDirect && <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Total charged</div>
+                          <div style={{fontWeight:800,fontSize:18,color:'#0d5f6b'}}>${b.total.toFixed(2)}</div>
+                        </div>}
                         <div style={{padding:'10px 14px',background:b.email_sent?'#edf7f0':'#fff8f5',borderRadius:8,border:`1px solid ${b.email_sent?'#b3e0c0':'#f5c2c0'}`}}>
-                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Notification email</div>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Notification</div>
                           <div style={{fontWeight:700,color:b.email_sent?'#28704e':'#a74840'}}>{b.email_sent?'✓ Sent':'✕ Not sent'}</div>
                         </div>
                       </div>
@@ -214,6 +236,7 @@ function BookingsTab({ bookings, headers, load }: {
             })}
           </tbody>
         </table>
+        </div>
       }
     </SectionCard>
   </>;
