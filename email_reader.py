@@ -6,13 +6,15 @@ import imaplib
 import email
 import re
 from email.header import decode_header
+from datetime import datetime
 from config import settings
 
-_GMAIL_FOLDERS = ['[Gmail]/All Mail', 'INBOX']
-
+_GMAIL_FOLDERS  = ['[Gmail]/All Mail', 'INBOX']
 _AIRBNB_SENDERS = ['automated@airbnb.com', 'airbnb.com', 'express@airbnb.com']
 _VRBO_SENDERS   = ['noreply@reviews.homeaway.com', 'reservations@vrbo.com', 'vrbo.com', 'homeaway.com']
 
+
+# ── helpers ──────────────────────────────────────────────────────────────────
 
 def _decode_str(s: str | None) -> str:
     if not s:
@@ -27,10 +29,11 @@ def _decode_str(s: str | None) -> str:
     return ''.join(out)
 
 
-def _extract_parts(msg) -> tuple[str, str]:
-    """Return (plain_text, raw_html) from an email message."""
+def _extract_parts(msg) -> tuple[str, str, str]:
+    """Return (plain_text, raw_html, date_str)."""
     plain = ''
-    html = ''
+    html  = ''
+    date  = _decode_str(msg.get('Date', ''))
     if msg.is_multipart():
         for part in msg.walk():
             ct = part.get_content_type()
@@ -52,11 +55,10 @@ def _extract_parts(msg) -> tuple[str, str]:
                 html = text
             else:
                 plain = text
-    return plain, html
+    return plain, html, date
 
 
 def _stripped(html: str) -> str:
-    """Strip HTML tags, collapse whitespace."""
     t = re.sub(r'<[^>]+>', ' ', html)
     t = re.sub(r'[ \t]+', ' ', t)
     return t
@@ -72,49 +74,91 @@ def _first(patterns: list[str], text: str, flags: int = re.I | re.S) -> str:
     return ''
 
 
-def _parse_airbnb(plain: str, html: str, subject: str) -> dict | None:
-    # Search all available text including raw HTML (confirmation code appears there too)
-    all_text = '\n'.join([subject, plain, _stripped(html), html])
+_MONTH = r'(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
+_DATE_PATTERNS = [
+    # Aug 22, 2026  /  August 22, 2026
+    rf'{_MONTH}\s+(\d{{1,2}}),?\s+(\d{{4}})',
+    # 08/22/2026  or  08-22-2026
+    r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})',
+    # 2026-08-22
+    r'(\d{4})-(\d{2})-(\d{2})',
+]
 
-    # Airbnb confirmation codes: HM... or HA... followed by 6-14 alphanumerics
+def _parse_dates(text: str) -> list[str]:
+    """Extract up to 2 ISO dates (check-in, check-out) from text."""
+    found = []
+    for pat in _DATE_PATTERNS:
+        for m in re.finditer(pat, text, re.I):
+            g = m.groups()
+            try:
+                if len(g) == 3:
+                    # Could be month-day-year, year-month-day, etc.
+                    if len(g[0]) == 4:          # YYYY-MM-DD
+                        d = datetime(int(g[0]), int(g[1]), int(g[2]))
+                    elif g[0].isalpha() or len(g[0]) > 2:  # Month DD YYYY
+                        month_str = m.group(0).split()[0]
+                        day = int(g[0]) if g[0].isdigit() else int(g[1])
+                        year = int(g[2]) if len(g[2]) == 4 else int(g[1])
+                        d = datetime.strptime(f'{month_str[:3]} {day} {year}', '%b %d %Y')
+                    else:                        # MM/DD/YYYY
+                        d = datetime(int(g[2]), int(g[0]), int(g[1]))
+                    iso = d.strftime('%Y-%m-%d')
+                    if iso not in found and d.year >= 2020:
+                        found.append(iso)
+            except Exception:
+                continue
+        if len(found) >= 2:
+            break
+    return found[:2]
+
+
+# ── parsers ──────────────────────────────────────────────────────────────────
+
+def _parse_airbnb(plain: str, html: str, subject: str) -> dict | None:
+    stripped = _stripped(html)
+    all_text = '\n'.join([subject, plain, stripped])
+
     code = _first([
         r'Confirmation code[:\s]+([A-Z0-9]{6,16})',
         r'confirmation code[:\s]+([A-Z0-9]{6,16})',
         r'Booking code[:\s]+([A-Z0-9]{6,16})',
-        # Raw code pattern anywhere in the email (Airbnb uses HM prefix)
         r'\b(HM[A-Z0-9]{6,12})\b',
         r'\b(HA[A-Z0-9]{6,12})\b',
         r'\b(HB[A-Z0-9]{6,12})\b',
     ], all_text)
-
     if not code:
-        print(f'  Airbnb: could not find confirmation code in: {subject[:80]}')
         return None
 
     name = _first([
-        # Subject-line patterns: "John D. has just booked"
         r'([A-Z][a-zA-Z\-]+(?:\s[A-Z][a-zA-Z\.\-]+)+)\s+(?:has just booked|is planning|has booked|booked your)',
-        # Body patterns
         r'reservation from\s+([A-Z][a-zA-Z\-]+(?:\s[A-Z][a-zA-Z\.\-]+)+)',
         r'booked by\s+([A-Z][a-zA-Z\-]+(?:\s[A-Z][a-zA-Z\.\-]+)+)',
         r'Guest[:\s]+([A-Z][a-zA-Z\-]+(?:\s[A-Z][a-zA-Z\.\-]+)+)',
-        # After "Guest information" section (HTML stripped to spaces)
         r'Guest information\s+([A-Z][a-zA-Z\-]+(?:\s[A-Z][a-zA-Z\.\-]+)+)\s',
-        # Looser: capitalized words before "Phone" or "Member"
         r'([A-Z][a-zA-Z\-]+\s+[A-Z][a-zA-Z\.\-]+)\s+(?:Phone|Member since|Joined)',
     ], all_text)
 
     phone = _first([
         r'Phone[:\s]+([\+\d][\d\s\(\)\-\.]{6,20})',
         r'Mobile[:\s]+([\+\d][\d\s\(\)\-\.]{6,20})',
-        r'Tel[:\s]+([\+\d][\d\s\(\)\-\.]{6,20})',
     ], all_text)
 
-    return {'confirmation_code': code, 'name': name, 'phone': phone, 'email': ''}
+    dates = _parse_dates(all_text)
+
+    return {
+        'platform': 'airbnb',
+        'confirmation_code': code,
+        'name': name,
+        'phone': phone,
+        'email': '',
+        'checkin':  dates[0] if len(dates) > 0 else '',
+        'checkout': dates[1] if len(dates) > 1 else '',
+    }
 
 
 def _parse_vrbo(plain: str, html: str, subject: str) -> dict | None:
-    all_text = '\n'.join([subject, plain, _stripped(html)])
+    stripped = _stripped(html)
+    all_text = '\n'.join([subject, plain, stripped])
 
     code = _first([
         r'Confirmation[#\s:]+([A-Z0-9]{6,16})',
@@ -138,8 +182,20 @@ def _parse_vrbo(plain: str, html: str, subject: str) -> dict | None:
         r'Email[:\s]+([\w.+\-]+@[\w.\-]+\.\w{2,})',
     ], all_text)
 
-    return {'confirmation_code': code, 'name': name, 'phone': phone, 'email': email_val}
+    dates = _parse_dates(all_text)
 
+    return {
+        'platform': 'vrbo',
+        'confirmation_code': code,
+        'name': name,
+        'phone': phone,
+        'email': email_val,
+        'checkin':  dates[0] if len(dates) > 0 else '',
+        'checkout': dates[1] if len(dates) > 1 else '',
+    }
+
+
+# ── IMAP connection & fetch ───────────────────────────────────────────────────
 
 def _connect() -> imaplib.IMAP4_SSL | None:
     if not settings.smtp_user or not settings.smtp_password:
@@ -155,8 +211,8 @@ def _connect() -> imaplib.IMAP4_SSL | None:
         return None
 
 
-def _fetch_from_sender(m: imaplib.IMAP4_SSL, sender: str, limit: int = 300) -> list[tuple[str, str, str]]:
-    """Return (subject, plain, html) tuples for emails matching sender."""
+def _fetch_from_sender(m: imaplib.IMAP4_SSL, sender: str, limit: int = 500) -> list[tuple[str,str,str,str]]:
+    """Return (subject, plain, html, date) for emails matching sender."""
     for folder in _GMAIL_FOLDERS:
         try:
             status, _ = m.select(folder, readonly=True)
@@ -175,72 +231,63 @@ def _fetch_from_sender(m: imaplib.IMAP4_SSL, sender: str, limit: int = 300) -> l
                         continue
                     msg = email.message_from_bytes(raw[0][1])
                     subj = _decode_str(msg.get('Subject', ''))
-                    plain, html = _extract_parts(msg)
-                    results.append((subj, plain, html))
+                    plain, html, date = _extract_parts(msg)
+                    results.append((subj, plain, html, date))
                 except Exception:
                     continue
             return results
         except Exception as e:
             print(f'  {folder}: error — {e}')
-            continue
     return []
 
 
-def fetch_ota_guest_info(debug: bool = False) -> list[dict]:
+# ── public API ────────────────────────────────────────────────────────────────
+
+def fetch_all_guest_records() -> list[dict]:
     """
-    Scan inbox for Airbnb/VRBO booking emails and extract guest info.
-    Returns list of {platform, confirmation_code, name, phone, email} dicts.
+    Scan all booking emails and return every guest record found.
+    Each record: {platform, confirmation_code, name, phone, email,
+                  checkin, checkout, email_received, subject}
     """
     m = _connect()
     if not m:
         return []
 
-    results: list[dict] = []
-    seen_codes: set[str] = set()
+    records: list[dict] = []
+    seen: set[str] = set()
 
     try:
-        # Airbnb — try each known sender address
-        airbnb_msgs: list[tuple[str,str,str]] = []
+        # Airbnb
         for sender in _AIRBNB_SENDERS:
             msgs = _fetch_from_sender(m, sender)
-            airbnb_msgs.extend(msgs)
-            if msgs:
-                break  # stop at first sender that has mail
-
-        for subj, plain, html in airbnb_msgs:
-            info = _parse_airbnb(plain, html, subj)
-            if not info:
+            if not msgs:
                 continue
-            code = info['confirmation_code']
-            if code in seen_codes:
-                continue
-            seen_codes.add(code)
-            info['platform'] = 'airbnb'
-            if debug:
-                info['_subject'] = subj
-                info['_sample'] = (plain or _stripped(html))[:400]
-            results.append(info)
-
-        print(f'  Airbnb: parsed {sum(1 for r in results if r.get("platform")=="airbnb")} reservations')
+            for subj, plain, html, date in msgs:
+                info = _parse_airbnb(plain, html, subj)
+                if not info or info['confirmation_code'] in seen:
+                    continue
+                seen.add(info['confirmation_code'])
+                info['subject']        = subj
+                info['email_received'] = date
+                records.append(info)
+            print(f'  Airbnb total so far: {len(records)}')
+            break
 
         # VRBO
         for sender in _VRBO_SENDERS:
-            vrbo_msgs = _fetch_from_sender(m, sender)
-            if not vrbo_msgs:
+            msgs = _fetch_from_sender(m, sender)
+            if not msgs:
                 continue
-            for subj, plain, html in vrbo_msgs:
+            before = len(records)
+            for subj, plain, html, date in msgs:
                 info = _parse_vrbo(plain, html, subj)
-                if not info:
+                if not info or info['confirmation_code'] in seen:
                     continue
-                code = info['confirmation_code']
-                if code in seen_codes:
-                    continue
-                seen_codes.add(code)
-                info['platform'] = 'vrbo'
-                if debug:
-                    info['_subject'] = subj
-                    info['_sample'] = (plain or _stripped(html))[:400]
-                results.append(info)
+                seen.add(info['confirmation_code'])
+                info['subject']        = subj
+                info['email_received'] = date
+                records.append(info)
+            print(f'  VRBO added: {len(records)-before}')
             break
 
     except Exception as e:
@@ -251,5 +298,12 @@ def fetch_ota_guest_info(debug: bool = False) -> list[dict]:
         except Exception:
             pass
 
-    print(f'Email reader: {len(results)} total parsed')
-    return results
+    # Sort by checkin descending
+    records.sort(key=lambda r: r.get('checkin',''), reverse=True)
+    print(f'Email reader: {len(records)} total guest records extracted')
+    return records
+
+
+def fetch_ota_guest_info(debug: bool = False) -> list[dict]:
+    """Compatibility wrapper used by the DB-update flow."""
+    return fetch_all_guest_records()

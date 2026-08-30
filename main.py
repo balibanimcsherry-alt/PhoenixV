@@ -1141,6 +1141,13 @@ async def admin_debug_emails(_:None=Depends(require_admin)):
     items = await asyncio.to_thread(fetch_ota_guest_info, True)
     return {'count': len(items), 'items': items[:20]}
 
+@app.get('/api/admin/export-email-guests')
+async def export_email_guests(_:None=Depends(require_admin)):
+    """Return all guest records extracted from booking emails as JSON."""
+    from email_reader import fetch_all_guest_records
+    items = await asyncio.to_thread(fetch_all_guest_records)
+    return items
+
 # ── Caretaker auth ───────────────────────────────────────────────────────────
 class _CaretakerLogin(BaseModel): username:str; password:str
 

@@ -176,6 +176,22 @@ function BookingsTab({ bookings, headers, load }: {
             style={{padding:'5px 14px',borderRadius:8,border:'1px solid #0d5f6b',background:'#f0fafb',color:'#0d5f6b',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
             {fetchingEmails ? 'Checking inbox…' : '📥 Fetch from email'}
           </button>
+          <button
+            onClick={async()=>{
+              setFetchMsg('Exporting…');
+              try {
+                const data = await api<object[]>('/api/admin/export-email-guests',{headers:headers()});
+                const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `email-guests-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                setFetchMsg(`✓ Exported ${data.length} record${data.length!==1?'s':''}`);
+              } catch { setFetchMsg('Export failed'); }
+            }}
+            style={{padding:'5px 14px',borderRadius:8,border:'1px solid #555',background:'#f5f5f5',color:'#333',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+            💾 Export to JSON
+          </button>
         </div>
       </div>
 
