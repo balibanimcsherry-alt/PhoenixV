@@ -24,6 +24,11 @@ export function PricingTab({ token }: { token: string }) {
   const [month, setMonth] = useState(today.getMonth());
   const [data, setData] = useState<any[]>([]);
   const [markups, setMarkups] = useState({ airbnb_markup_percent: 17, vrbo_markup_percent: 20, booking_markup_percent: 25 });
+  const [directDiscount, setDirectDiscount] = useState(10);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configDraft, setConfigDraft] = useState({ airbnb_markup_percent: 17, vrbo_markup_percent: 20, booking_markup_percent: 25, direct_discount_percent: 10 });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [syncStatus, setSyncStatus] = useState<{ last_synced: string | null; cached_days: number } | null>(null);
@@ -56,14 +61,33 @@ export function PricingTab({ token }: { token: string }) {
       if (r.error) setError(r.error);
       else setData(r.daily || []);
       if (r.airbnb_markup_percent !== undefined) {
-        setMarkups({
-          airbnb_markup_percent: r.airbnb_markup_percent,
-          vrbo_markup_percent: r.vrbo_markup_percent,
-          booking_markup_percent: r.booking_markup_percent,
-        });
+        const m = { airbnb_markup_percent: r.airbnb_markup_percent, vrbo_markup_percent: r.vrbo_markup_percent, booking_markup_percent: r.booking_markup_percent };
+        setMarkups(m);
+        setConfigDraft(d => ({ ...d, ...m }));
       }
     } catch { setError('Failed to load pricing'); }
     setLoading(false);
+  };
+
+  // Load full settings (for direct_discount_percent) when config panel opens
+  useEffect(() => {
+    if (!configOpen) return;
+    api<any>('/api/admin/settings', { headers: h }).then(s => {
+      setDirectDiscount(s.direct_discount_percent ?? 10);
+      setConfigDraft(d => ({ ...d, direct_discount_percent: s.direct_discount_percent ?? 10 }));
+    }).catch(() => {});
+  }, [configOpen]);
+
+  const saveConfig = async () => {
+    setSaving(true);
+    try {
+      const current = await api<any>('/api/admin/settings', { headers: h });
+      await api('/api/admin/settings', { method: 'PUT', headers: h, body: JSON.stringify({ ...current, ...configDraft }) });
+      setMarkups({ airbnb_markup_percent: configDraft.airbnb_markup_percent, vrbo_markup_percent: configDraft.vrbo_markup_percent, booking_markup_percent: configDraft.booking_markup_percent });
+      setDirectDiscount(configDraft.direct_discount_percent);
+      setSaved(true); setTimeout(() => setSaved(false), 2000);
+    } catch {}
+    setSaving(false);
   };
 
   useEffect(() => { load(); }, [year, month, token]);
@@ -114,8 +138,47 @@ export function PricingTab({ token }: { token: string }) {
         </button>
       </div>
 
+      {/* Configurable markups / markdown */}
+      <div style={{ marginBottom: 20, border: '1px solid #deeaec', borderRadius: 10, overflow: 'hidden' }}>
+        <button onClick={() => setConfigOpen(o => !o)} style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f5f9fa', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#0d5f6b' }}>
+          <span>⚙️ Configure Markups &amp; Direct Discount</span>
+          <span style={{ fontSize: 12, color: '#888' }}>{configOpen ? '▲ Close' : '▼ Edit'}</span>
+        </button>
+        {configOpen && (
+          <div style={{ padding: '16px 20px', background: '#fff', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, alignItems: 'end' }}>
+            {[
+              { label: 'Airbnb markup', key: 'airbnb_markup_percent', color: '#FF5A5F', sign: '+' },
+              { label: 'VRBO markup',   key: 'vrbo_markup_percent',   color: '#3D5A80', sign: '+' },
+              { label: 'Booking.com markup', key: 'booking_markup_percent', color: '#003580', sign: '+' },
+              { label: 'Direct discount', key: 'direct_discount_percent', color: '#0d5f6b', sign: '−' },
+            ].map(f => (
+              <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: f.color }}>{f.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 13, color: f.color, fontWeight: 700 }}>{f.sign}</span>
+                  <input
+                    type="number" min={0} max={100}
+                    value={(configDraft as any)[f.key]}
+                    onChange={e => setConfigDraft(d => ({ ...d, [f.key]: Number(e.target.value) }))}
+                    style={{ width: '100%', padding: '7px 10px', border: `1px solid ${f.color}50`, borderRadius: 6, fontSize: 14, fontWeight: 700, color: f.color }}
+                  />
+                  <span style={{ fontSize: 13, color: '#aaa' }}>%</span>
+                </div>
+              </label>
+            ))}
+            <div style={{ gridColumn: '1/-1', display: 'flex', gap: 10, marginTop: 4 }}>
+              <button className="btn" onClick={saveConfig} disabled={saving} style={{ padding: '8px 20px' }}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              {saved && <span style={{ color: '#28a745', fontWeight: 700, alignSelf: 'center' }}>✓ Saved</span>}
+              <span style={{ color: '#aaa', fontSize: 12, alignSelf: 'center' }}>Changes apply immediately to the price display below.</span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Platform markup summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {PLATFORMS.map(p => {
           const markup = getMarkup(p.key);
           const avgWithMarkup = avgP ? Math.round(avgP * (1 + markup / 100)) : 0;
@@ -123,14 +186,24 @@ export function PricingTab({ token }: { token: string }) {
             <div key={p.key} style={{ background: '#fff', border: `1px solid ${p.color}30`, borderRadius: 10, padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, display: 'inline-block' }} />
-                <strong style={{ fontSize: 13, color: p.color }}>{p.label}</strong>
-                <span style={{ marginLeft: 'auto', background: p.color + '20', color: p.color, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>+{markup}%</span>
+                <strong style={{ fontSize: 12, color: p.color }}>{p.label}</strong>
+                <span style={{ marginLeft: 'auto', background: p.color + '20', color: p.color, padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>+{markup}%</span>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#222' }}>${avgWithMarkup}/night</div>
+              <div style={{ fontSize: 19, fontWeight: 700, color: '#222' }}>${avgWithMarkup}/night</div>
               <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>avg this month · base ${Math.round(avgP)}</div>
             </div>
           );
         })}
+        {/* Direct booking */}
+        <div style={{ background: '#fff', border: '1px solid #0d5f6b30', borderRadius: 10, padding: '14px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#0d5f6b', display: 'inline-block' }} />
+            <strong style={{ fontSize: 12, color: '#0d5f6b' }}>Direct</strong>
+            <span style={{ marginLeft: 'auto', background: '#0d5f6b20', color: '#0d5f6b', padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700 }}>−{directDiscount}%</span>
+          </div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: '#222' }}>${avgP ? Math.round(avgP * (1 - directDiscount / 100)) : 0}/night</div>
+          <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>avg this month · save vs OTAs</div>
+        </div>
       </div>
 
       {/* Stats */}
