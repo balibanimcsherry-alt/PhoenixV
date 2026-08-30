@@ -370,46 +370,130 @@ export default function Admin() {
         </>}
 
         {/* ── BOOKINGS ── */}
-        {tab === 'bookings' && <>
+        {tab === 'bookings' && (() => {
+          const [expandedBooking, setExpandedBooking] = React.useState<number|null>(null);
+          const cancelled = bookings.filter(b => b.status === 'cancelled').length;
+          const emailSentCount = bookings.filter(b => b.email_sent).length;
+          const totalRev = confirmedBookings.reduce((s: number, b: any) => s + b.total, 0);
+
+          // monthly bookings for bar chart
+          const byMonth: Record<string, number> = {};
+          confirmedBookings.forEach((b: any) => {
+            const m = b.created_at.slice(0, 7);
+            byMonth[m] = (byMonth[m] || 0) + 1;
+          });
+          const monthData = Object.entries(byMonth).sort().slice(-6).map(([month, count]) => ({ month: month.slice(5), count }));
+
+          // revenue by day aligned to analytics daily
+          const revenueByDay: Record<string, number> = {};
+          confirmedBookings.forEach((b: any) => { const d = b.created_at.slice(0,10); revenueByDay[d] = (revenueByDay[d]||0)+b.total; });
+
+          return <>
           <h1>Bookings</h1>
           <div className="kpi-grid">
-            {kpi('Total', bookings.length)}
-            {kpi('Confirmed', bookings.filter(b => b.status === 'confirmed').length)}
-            {kpi('Payment Pending', bookings.filter(b => b.status === 'payment_pending').length)}
-            {kpi('Pending Approval', bookings.filter(b => b.status === 'pending_approval').length)}
+            {kpi('Total Bookings', bookings.length, 'all time')}
+            {kpi('Confirmed', bookings.filter((b:any) => b.status === 'confirmed').length, 'paid & active')}
+            {kpi('Revenue', `$${totalRev.toLocaleString('en-US',{maximumFractionDigits:0})}`, 'confirmed stays')}
+            {kpi('Pending Approval', bookings.filter((b:any) => b.status === 'pending_approval').length, 'awaiting review')}
+            {kpi('Cancelled', cancelled, 'all time')}
+            {kpi('Confirmations Sent', emailSentCount, 'emails delivered')}
           </div>
+
+          {/* Revenue over time */}
+          {analytics?.daily && analytics.daily.some((d: any) => revenueByDay[d.date]) && (
+            <SectionCard title="Revenue by booking date">
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={analytics.daily.map((d: any) => ({ date: d.date, revenue: revenueByDay[d.date] || 0 }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e8efed" />
+                  <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
+                  <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(0)}`, 'Revenue']} />
+                  <Line type="monotone" dataKey="revenue" stroke="#0d5f6b" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </SectionCard>
+          )}
+
+          {monthData.length > 0 && (
+            <SectionCard title="Confirmed bookings by month">
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={monthData}>
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#0d5f6b" radius={[6,6,0,0]} name="Bookings" />
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+          )}
+
           <SectionCard title="All bookings">
-            <table className="admin-table">
-              <thead><tr><th>Ref</th><th>Guest</th><th>Email</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Guests</th><th>Total</th><th>Status</th><th>Booked</th><th></th></tr></thead>
+            <table className="admin-table" style={{ fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th>Ref</th><th>Guest</th><th>Phone</th><th>Email</th>
+                  <th>Check-in</th><th>Check-out</th><th>Nights</th><th>Guests</th>
+                  <th>Total</th><th>Status</th><th>Sent</th><th>Booked</th><th></th>
+                </tr>
+              </thead>
               <tbody>
-                {bookings.map(b => {
+                {bookings.map((b: any) => {
                   const nights = Math.round((new Date(b.checkout).getTime() - new Date(b.checkin).getTime()) / 86400000);
-                  const canCancel = !['cancelled'].includes(b.status);
-                  return <tr key={b.id}>
-                    <td><strong>#CHV-{String(b.id).padStart(4, '0')}</strong></td>
-                    <td>{b.guest_name || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{b.email || '—'}</td>
-                    <td>{b.checkin}</td>
-                    <td>{b.checkout}</td>
-                    <td>{nights}</td>
-                    <td>{b.guests}</td>
-                    <td><strong>${b.total.toFixed(2)}</strong></td>
-                    <td><span className={`status-badge status-${b.status.replace(/_/g, '-')}`}>{b.status}</span></td>
-                    <td style={{ fontSize: 11 }}>{b.created_at.slice(0, 10)}</td>
-                    <td>{canCancel && (
-                      <button style={{ fontSize: 11, padding: '3px 8px', background: '#fde7e5', border: '1px solid #f5c2c0', borderRadius: 5, color: '#a74840', cursor: 'pointer' }}
-                        onClick={async () => {
-                          if (!confirm(`Cancel booking #CHV-${String(b.id).padStart(4,'0')} (${b.checkin} → ${b.checkout})?`)) return;
-                          await api(`/api/admin/bookings/${b.id}/status`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status: 'cancelled' }) });
-                          load();
-                        }}>Cancel</button>
-                    )}</td>
-                  </tr>;
+                  const ref = `#CHV-${String(b.id).padStart(4,'0')}`;
+                  const expanded = expandedBooking === b.id;
+                  return <React.Fragment key={b.id}>
+                    <tr style={{ cursor: 'pointer', background: expanded ? '#f0f9fa' : undefined }}
+                        onClick={() => setExpandedBooking(expanded ? null : b.id)}>
+                      <td><strong>{ref}</strong></td>
+                      <td>{b.guest_name || <span style={{color:'#bbb'}}>—</span>}</td>
+                      <td style={{ fontSize: 12 }}>{b.phone || <span style={{color:'#bbb'}}>—</span>}</td>
+                      <td style={{ fontSize: 12 }}>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a> : <span style={{color:'#bbb'}}>—</span>}</td>
+                      <td>{b.checkin}</td>
+                      <td>{b.checkout}</td>
+                      <td>{nights}</td>
+                      <td>{b.guests}</td>
+                      <td><strong>${b.total.toFixed(2)}</strong></td>
+                      <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
+                      <td>{b.email_sent ? <span style={{color:'#28704e',fontWeight:700}}>✓</span> : <span style={{color:'#bbb'}}>—</span>}</td>
+                      <td style={{ fontSize: 11 }}>{b.created_at.slice(0,10)}</td>
+                      <td onClick={e=>e.stopPropagation()}>
+                        {!['cancelled'].includes(b.status) && (
+                          <button style={{ fontSize: 11, padding: '3px 8px', background: '#fde7e5', border: '1px solid #f5c2c0', borderRadius: 5, color: '#a74840', cursor: 'pointer' }}
+                            onClick={async () => {
+                              if (!confirm(`Cancel ${ref}?`)) return;
+                              await api(`/api/admin/bookings/${b.id}/status`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status: 'cancelled' }) });
+                              load();
+                            }}>Cancel</button>
+                        )}
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr style={{ background: '#f5fbfc' }}>
+                        <td colSpan={13} style={{ padding: '14px 20px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, fontSize: 13 }}>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Full name</span><br/>{b.guest_name || '—'}</div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Email</span><br/>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}}>{b.email}</a> : '—'}</div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Phone</span><br/>{b.phone ? <a href={`tel:${b.phone}`} style={{color:'#0d5f6b'}}>{b.phone}</a> : '—'}</div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Address</span><br/>{b.address || '—'}</div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Booking ref</span><br/><strong>{ref}</strong></div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Guests</span><br/>{b.guests}</div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Nights</span><br/>{nights}</div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Total charged</span><br/><strong>${b.total.toFixed(2)}</strong></div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Status</span><br/><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Confirmation email</span><br/>{b.email_sent ? <span style={{color:'#28704e',fontWeight:700}}>Sent ✓</span> : <span style={{color:'#c0392b'}}>Not sent</span>}</div>
+                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Booked on</span><br/>{b.created_at.slice(0,16).replace('T',' ')}</div>
+                            {b.customer_id && <div><span style={{color:'#5a8a90',fontWeight:600}}>Customer ID</span><br/>#{b.customer_id}</div>}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>;
                 })}
               </tbody>
             </table>
           </SectionCard>
-        </>}
+          </>;
+        })()}
 
         {/* ── PAYMENTS ── */}
         {tab === 'payments' && <>
