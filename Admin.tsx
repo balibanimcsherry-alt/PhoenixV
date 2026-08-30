@@ -137,7 +137,7 @@ export default function Admin() {
             {t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1)}
           </button>
         ))}
-        <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); }} style={{ marginTop: 'auto', opacity: 0.6 }}>
+        <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); }} style={{ marginTop: 'auto', background: 'rgba(255,255,255,.12)', borderRadius: 8, fontWeight: 600 }}>
           Sign out
         </button>
       </div>

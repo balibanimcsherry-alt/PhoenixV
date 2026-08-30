@@ -89,13 +89,19 @@ export function PMSTab({ token }: { token: string }) {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
+  const isAuthError = error.includes('expired') || error.includes('401') || error.includes('token');
+
   if (error && !data) return (
     <div style={{ padding: 24 }}>
       <h1>Property Management</h1>
       <div style={{ background: '#fde7e5', border: '1px solid #f5c2c0', borderRadius: 10, padding: '16px 20px', color: '#a74840' }}>
-        <strong>Error loading PMS data:</strong> {error}
-        <div style={{ marginTop: 10 }}>
-          <button className="btn" onClick={load}>Retry</button>
+        {isAuthError
+          ? <><strong>Session expired.</strong> Sign out and sign back in to continue.</>
+          : <><strong>Error loading PMS data:</strong> {error}</>}
+        <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
+          {isAuthError
+            ? <button className="btn" onClick={() => { localStorage.removeItem('adminToken'); window.location.reload(); }}>Sign out &amp; reload</button>
+            : <button className="btn" onClick={load}>Retry</button>}
         </div>
       </div>
     </div>
