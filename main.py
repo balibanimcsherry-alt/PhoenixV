@@ -16,7 +16,6 @@ from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegis
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
 from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_info, _is_cross_calendar_block, _BLOCK_SUMMARIES
-from email_service import send_ota_reservation_notification
 from email_reader import fetch_ota_guest_info
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
@@ -1011,17 +1010,6 @@ async def _do_pms_sync(db: Session) -> int:
                     email_sent=False)
                 db.add(row)
                 total_new+=1
-                # Notify only on first insert, only for future check-ins
-                try:
-                    ci_date = date.fromisoformat(ci)
-                except Exception:
-                    ci_date = None
-                if ci_date and ci_date >= today:
-                    try:
-                        send_ota_reservation_notification({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co,'guest_phone':phone,'guest_email':email})
-                        row.email_sent = True
-                    except Exception as e:
-                        print(f'Email notification failed: {e}')
         db.commit()
     _dedup_ical_reservations(db)
     return total_new

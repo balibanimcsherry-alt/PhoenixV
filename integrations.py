@@ -148,8 +148,10 @@ _PLATFORM_UID_DOMAINS = {
 _BLOCK_SUMMARIES = {
     'not available', 'blocked', 'hold', 'owner block', 'owner hold',
     'maintenance', 'unavailable', 'closed', 'turnover',
-    # platforms sometimes use their own name as a block label
-    'airbnb', 'vrbo', 'booking.com',
+    # NOTE: platform names ('airbnb', 'vrbo', 'booking.com') intentionally excluded —
+    # cross-platform detection is handled by _PLATFORM_TOKENS with p != platform guard.
+    # Including them here caused same-platform events (e.g. Airbnb summary "Airbnb")
+    # to be deleted every sync and re-inserted as "new", triggering bulk notifications.
 }
 
 # Tokens that, when found in another platform's summary, indicate a cross-import
