@@ -573,6 +573,16 @@ def preview_email(template:str, _:None=Depends(_require_admin_flex)):
     if not fn: raise HTTPException(404, f'Unknown template: {template}. Options: {list(templates.keys())}')
     return HTMLResponse(content=fn())
 
+class _StatusIn(BaseModel): status:str
+
+@app.patch('/api/admin/bookings/{booking_id}/status')
+def update_booking_status(booking_id:int,payload:_StatusIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    b=db.get(BookingRequest,booking_id)
+    if not b: raise HTTPException(404,'Booking not found')
+    b.status=payload.status
+    db.commit()
+    return {'ok':True,'id':b.id,'status':b.status}
+
 @app.get('/api/admin/chat')
 def admin_chat(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     rows=db.query(ChatMessage).order_by(ChatMessage.created_at.desc()).limit(100).all();return [{'id':r.id,'name':r.name,'email':r.email,'message':r.message,'created_at':r.created_at.isoformat()} for r in rows]

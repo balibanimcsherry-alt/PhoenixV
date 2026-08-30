@@ -344,10 +344,11 @@ export default function Admin() {
           </div>
           <SectionCard title="All bookings">
             <table className="admin-table">
-              <thead><tr><th>Ref</th><th>Guest</th><th>Email</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Guests</th><th>Total</th><th>Status</th><th>Booked</th></tr></thead>
+              <thead><tr><th>Ref</th><th>Guest</th><th>Email</th><th>Check-in</th><th>Check-out</th><th>Nights</th><th>Guests</th><th>Total</th><th>Status</th><th>Booked</th><th></th></tr></thead>
               <tbody>
                 {bookings.map(b => {
                   const nights = Math.round((new Date(b.checkout).getTime() - new Date(b.checkin).getTime()) / 86400000);
+                  const canCancel = !['cancelled'].includes(b.status);
                   return <tr key={b.id}>
                     <td><strong>#CHV-{String(b.id).padStart(4, '0')}</strong></td>
                     <td>{b.guest_name || '—'}</td>
@@ -359,6 +360,14 @@ export default function Admin() {
                     <td><strong>${b.total.toFixed(2)}</strong></td>
                     <td><span className={`status-badge status-${b.status.replace(/_/g, '-')}`}>{b.status}</span></td>
                     <td style={{ fontSize: 11 }}>{b.created_at.slice(0, 10)}</td>
+                    <td>{canCancel && (
+                      <button style={{ fontSize: 11, padding: '3px 8px', background: '#fde7e5', border: '1px solid #f5c2c0', borderRadius: 5, color: '#a74840', cursor: 'pointer' }}
+                        onClick={async () => {
+                          if (!confirm(`Cancel booking #CHV-${String(b.id).padStart(4,'0')} (${b.checkin} → ${b.checkout})?`)) return;
+                          await api(`/api/admin/bookings/${b.id}/status`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status: 'cancelled' }) });
+                          load();
+                        }}>Cancel</button>
+                    )}</td>
                   </tr>;
                 })}
               </tbody>
