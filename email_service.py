@@ -16,7 +16,7 @@ IMG_WAVE_BG      = 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0
 PROPERTY_NAME = 'Coastal Haven at Phoenix V'
 PROPERTY_ADDR = '24400 Perdido Beach Blvd, Orange Beach, AL 36561'
 PROPERTY_URL  = 'https://orangebeachstay.com'
-SUPPORT_EMAIL = 'voiceorchatbot@gmail.com'
+SUPPORT_EMAIL = settings.from_email or settings.smtp_user or 'balibanimcsherry@gmail.com'
 
 # Deep ocean palette
 _C_OCEAN   = '#072d3a'   # darkest teal — footer, text
