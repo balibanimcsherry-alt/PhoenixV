@@ -1135,6 +1135,12 @@ async def admin_fetch_emails(_:None=Depends(require_admin),db:Session=Depends(ge
     n = await asyncio.to_thread(_apply_email_guest_info, db)
     return {'updated': n}
 
+@app.get('/api/admin/debug-emails')
+async def admin_debug_emails(_:None=Depends(require_admin)):
+    """Return raw parsed email data without saving — for diagnosing IMAP issues."""
+    items = await asyncio.to_thread(fetch_ota_guest_info, True)
+    return {'count': len(items), 'items': items[:20]}
+
 # ── Caretaker auth ───────────────────────────────────────────────────────────
 class _CaretakerLogin(BaseModel): username:str; password:str
 
