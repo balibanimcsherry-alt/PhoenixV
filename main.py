@@ -607,8 +607,9 @@ def admin_chat(_:None=Depends(require_admin),db:Session=Depends(get_db)):
 
 @app.get('/api/admin/bookings')
 def admin_bookings(_:None=Depends(require_admin),db:Session=Depends(get_db)):
-    rows=db.query(BookingRequest).order_by(BookingRequest.created_at.desc()).all()
-    return [{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name or '','email':b.email or '','phone':b.phone or '','address':b.address or '','customer_id':b.customer_id,'total':b.total,'status':b.status,'email_sent':b.email_sent,'created_at':b.created_at.isoformat()} for b in rows]
+    direct=[{'id':f'd{b.id}','db_id':b.id,'source':'direct','checkin':b.checkin,'checkout':b.checkout,'guest_name':b.guest_name or '','email':b.email or '','phone':b.phone or '','address':b.address or '','guests':b.guests,'total':b.total,'status':b.status,'email_sent':b.email_sent,'created_at':b.created_at.isoformat()} for b in db.query(BookingRequest).all()]
+    ota=[{'id':f'o{r.id}','db_id':r.id,'source':r.platform,'checkin':r.checkin,'checkout':r.checkout,'guest_name':r.guest_name or '','email':r.guest_email or '','phone':r.guest_phone or '','address':'','guests':None,'total':0.0,'status':'confirmed','email_sent':r.email_sent,'created_at':r.synced_at.isoformat() if r.synced_at else r.checkin+'T00:00:00'} for r in db.query(IcalReservation).all()]
+    return sorted(direct+ota,key=lambda x:x['checkin'],reverse=True)
 
 @app.get('/api/admin/customers')
 def admin_customers(_:None=Depends(require_admin),db:Session=Depends(get_db)):

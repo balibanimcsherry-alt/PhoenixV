@@ -66,54 +66,49 @@ function SectionCard({ title, children }: { title: string; children: React.React
   return <div className="admin-card"><h2>{title}</h2>{children}</div>;
 }
 
-function BookingsTab({ bookings, confirmedBookings, analytics, headers, load }: {
-  bookings: any[]; confirmedBookings: any[]; analytics: any;
+const SOURCE_LABELS: Record<string,string> = {direct:'Direct',airbnb:'Airbnb',vrbo:'VRBO',booking:'Booking.com'};
+const SOURCE_COLORS: Record<string,string> = {direct:'#0d5f6b',airbnb:'#e84393',vrbo:'#1557a0',booking:'#003580'};
+
+function SourceBadge({source}: {source: string}) {
+  return <span style={{display:'inline-block',padding:'2px 8px',borderRadius:12,fontSize:10,fontWeight:700,color:'#fff',background:SOURCE_COLORS[source]||'#888',letterSpacing:.5}}>{SOURCE_LABELS[source]||source}</span>;
+}
+
+function BookingsTab({ bookings, headers, load }: {
+  bookings: any[];
   headers: () => Record<string,string>; load: () => void;
 }) {
-  const [expanded, setExpanded] = React.useState<number|null>(null);
+  const [expanded, setExpanded] = React.useState<string|null>(null);
+  const [srcFilter, setSrcFilter] = React.useState<string>('all');
 
-  const cancelled     = bookings.filter(b => b.status === 'cancelled').length;
-  const emailSentCount= bookings.filter(b => b.email_sent).length;
-  const totalRev      = confirmedBookings.reduce((s, b) => s + b.total, 0);
+  const direct   = bookings.filter(b => b.source === 'direct');
+  const ota      = bookings.filter(b => b.source !== 'direct');
+  const confirmed= direct.filter(b => ['confirmed','payment_pending'].includes(b.status));
+  const totalRev = confirmed.reduce((s, b) => s + b.total, 0);
+  const emailSent= bookings.filter(b => b.email_sent).length;
 
   const byMonth: Record<string,number> = {};
-  confirmedBookings.forEach(b => { const m = b.created_at.slice(0,7); byMonth[m]=(byMonth[m]||0)+1; });
+  confirmed.forEach(b => { const m = b.created_at.slice(0,7); byMonth[m]=(byMonth[m]||0)+1; });
   const monthData = Object.entries(byMonth).sort().slice(-6).map(([month,count])=>({month:month.slice(5),count}));
 
-  const revenueByDay: Record<string,number> = {};
-  confirmedBookings.forEach(b => { const d=b.created_at.slice(0,10); revenueByDay[d]=(revenueByDay[d]||0)+b.total; });
+  const filtered = srcFilter === 'all' ? bookings : bookings.filter(b => b.source === srcFilter);
 
   const missingTag = (v: string) => v
     ? <span>{v}</span>
     : <span style={{background:'#fde7e5',color:'#a74840',fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:4}}>MISSING</span>;
 
   return <>
-    <h1>Bookings</h1>
+    <h1>All Reservations</h1>
     <div className="kpi-grid">
-      {kpi('Total Bookings', bookings.length, 'all time')}
-      {kpi('Confirmed', bookings.filter(b=>b.status==='confirmed').length, 'paid & active')}
-      {kpi('Revenue', `$${totalRev.toLocaleString('en-US',{maximumFractionDigits:0})}`, 'confirmed stays')}
-      {kpi('Pending Approval', bookings.filter(b=>b.status==='pending_approval').length, 'awaiting review')}
-      {kpi('Cancelled', cancelled, 'all time')}
-      {kpi('Confirmations Sent', emailSentCount, 'emails delivered')}
+      {kpi('Total', bookings.length, 'all sources')}
+      {kpi('Direct Bookings', direct.length, 'via website')}
+      {kpi('OTA Reservations', ota.length, 'Airbnb / VRBO / Booking')}
+      {kpi('Direct Revenue', `$${totalRev.toLocaleString('en-US',{maximumFractionDigits:0})}`, 'confirmed direct')}
+      {kpi('Cancelled', direct.filter(b=>b.status==='cancelled').length, 'direct only')}
+      {kpi('Emails Sent', emailSent, 'all sources')}
     </div>
 
-    {analytics?.daily && analytics.daily.some((d:any)=>revenueByDay[d.date]) && (
-      <SectionCard title="Revenue by booking date">
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={analytics.daily.map((d:any)=>({date:d.date,revenue:revenueByDay[d.date]||0}))}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e8efed"/>
-            <XAxis dataKey="date" tickFormatter={(d:string)=>d.slice(5)} tick={{fontSize:11}}/>
-            <YAxis tick={{fontSize:11}} tickFormatter={(v:number)=>`$${v}`}/>
-            <Tooltip formatter={(v:any)=>[`$${Number(v).toFixed(0)}`,'Revenue']}/>
-            <Line type="monotone" dataKey="revenue" stroke="#0d5f6b" strokeWidth={2} dot={false}/>
-          </LineChart>
-        </ResponsiveContainer>
-      </SectionCard>
-    )}
-
     {monthData.length > 0 && (
-      <SectionCard title="Confirmed bookings by month">
+      <SectionCard title="Confirmed direct bookings by month">
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={monthData}>
             <XAxis dataKey="month" tick={{fontSize:12}}/>
@@ -125,44 +120,56 @@ function BookingsTab({ bookings, confirmedBookings, analytics, headers, load }: 
       </SectionCard>
     )}
 
-    <SectionCard title="All bookings">
-      {bookings.length === 0
-        ? <p style={{color:'#888',padding:'20px 0'}}>No bookings yet.</p>
+    <SectionCard title="All reservations">
+      {/* Source filter */}
+      <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+        {(['all','direct','airbnb','vrbo','booking'] as const).map(s=>(
+          <button key={s} onClick={()=>setSrcFilter(s)}
+            style={{padding:'4px 14px',borderRadius:20,border:'1px solid',fontSize:12,fontWeight:600,cursor:'pointer',
+              borderColor: srcFilter===s ? (SOURCE_COLORS[s]||'#0d5f6b') : '#d0e4e8',
+              background:  srcFilter===s ? (SOURCE_COLORS[s]||'#0d5f6b') : '#fff',
+              color:       srcFilter===s ? '#fff' : '#555'}}>
+            {s==='all'?'All':SOURCE_LABELS[s]}
+            <span style={{marginLeft:6,opacity:.8}}>({s==='all'?bookings.length:bookings.filter(b=>b.source===s).length})</span>
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0
+        ? <p style={{color:'#888',padding:'20px 0'}}>No reservations.</p>
         : <table className="admin-table" style={{fontSize:13}}>
           <thead>
             <tr>
-              <th>Ref</th><th>Guest</th><th>Phone</th><th>Email</th>
-              <th>Check-in</th><th>Check-out</th><th>Nights</th><th>Guests</th>
-              <th>Total</th><th>Status</th><th>Email</th><th>Booked</th><th></th>
+              <th>Source</th><th>Guest</th><th>Phone</th><th>Email</th>
+              <th>Check-in</th><th>Check-out</th><th>Nights</th>
+              <th>Total</th><th>Status</th><th>Email</th><th></th>
             </tr>
           </thead>
           <tbody>
-            {bookings.map(b => {
+            {filtered.map(b => {
               const nights = Math.round((new Date(b.checkout).getTime()-new Date(b.checkin).getTime())/86400000);
-              const ref    = `#CHV-${String(b.id).padStart(4,'0')}`;
               const open   = expanded === b.id;
-              const hasMissing = !b.guest_name || !b.email || !b.phone || !b.address;
+              const isDirect = b.source === 'direct';
+              const hasMissing = !b.guest_name || !b.email || !b.phone || (isDirect && !b.address);
               return <React.Fragment key={b.id}>
                 <tr style={{cursor:'pointer',background:open?'#f0f9fa':hasMissing?'#fffaf8':undefined}}
                     onClick={()=>setExpanded(open?null:b.id)}>
-                  <td><strong>{ref}</strong>{hasMissing&&<span style={{marginLeft:6,fontSize:9,background:'#fde7e5',color:'#a74840',padding:'1px 5px',borderRadius:4,fontWeight:700}}>!</span>}</td>
-                  <td>{b.guest_name||<span style={{color:'#c0392b',fontWeight:600}}>Missing</span>}</td>
-                  <td style={{fontSize:12}}>{b.phone||<span style={{color:'#c0392b'}}>Missing</span>}</td>
-                  <td style={{fontSize:12}}>{b.email?<a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a>:<span style={{color:'#c0392b'}}>Missing</span>}</td>
+                  <td><SourceBadge source={b.source}/></td>
+                  <td>{b.guest_name||<span style={{color:'#c0392b',fontWeight:600}}>Unknown</span>}</td>
+                  <td style={{fontSize:12}}>{b.phone||<span style={{color:'#aaa',fontSize:11}}>—</span>}</td>
+                  <td style={{fontSize:12}}>{b.email?<a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a>:<span style={{color:'#aaa',fontSize:11}}>—</span>}</td>
                   <td>{b.checkin}</td>
                   <td>{b.checkout}</td>
                   <td>{nights}</td>
-                  <td>{b.guests}</td>
-                  <td><strong>${b.total.toFixed(2)}</strong></td>
+                  <td>{isDirect?<strong>${b.total.toFixed(2)}</strong>:<span style={{color:'#aaa',fontSize:11}}>OTA</span>}</td>
                   <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
-                  <td>{b.email_sent?<span style={{color:'#28704e',fontWeight:700}}>✓</span>:<span style={{color:'#bbb'}}>No</span>}</td>
-                  <td style={{fontSize:11}}>{b.created_at.slice(0,10)}</td>
+                  <td>{b.email_sent?<span style={{color:'#28704e',fontWeight:700}}>✓</span>:<span style={{color:'#bbb'}}>—</span>}</td>
                   <td onClick={e=>e.stopPropagation()}>
-                    {!['cancelled'].includes(b.status)&&(
+                    {isDirect && b.status !== 'cancelled' && (
                       <button style={{fontSize:11,padding:'3px 8px',background:'#fde7e5',border:'1px solid #f5c2c0',borderRadius:5,color:'#a74840',cursor:'pointer'}}
                         onClick={async()=>{
-                          if(!confirm(`Cancel ${ref}?`))return;
-                          await api(`/api/admin/bookings/${b.id}/status`,{method:'PATCH',headers:headers(),body:JSON.stringify({status:'cancelled'})});
+                          if(!confirm(`Cancel this booking?`))return;
+                          await api(`/api/admin/bookings/${b.db_id}/status`,{method:'PATCH',headers:headers(),body:JSON.stringify({status:'cancelled'})});
                           load();
                         }}>Cancel</button>
                     )}
@@ -170,32 +177,33 @@ function BookingsTab({ bookings, confirmedBookings, analytics, headers, load }: 
                 </tr>
                 {open&&(
                   <tr style={{background:'#f5fbfc'}}>
-                    <td colSpan={13} style={{padding:'16px 20px'}}>
+                    <td colSpan={11} style={{padding:'16px 20px'}}>
                       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12,fontSize:13}}>
                         {[
-                          ['Full name',     b.guest_name,  null],
-                          ['Email',         b.email,       b.email?`mailto:${b.email}`:null],
-                          ['Phone',         b.phone,       b.phone?`tel:${b.phone}`:null],
-                          ['Home address',  b.address,     null],
-                          ['Booking ref',   ref,           null],
-                          ['Check-in',      b.checkin,     null],
-                          ['Check-out',     b.checkout,    null],
-                          ['Nights',        String(nights),null],
-                          ['Guests',        String(b.guests),null],
-                          ['Total charged', `$${b.total.toFixed(2)}`,null],
-                          ['Booked on',     b.created_at.slice(0,16).replace('T',' '),null],
+                          ['Guest name',  b.guest_name,  null],
+                          ['Email',       b.email,       b.email?`mailto:${b.email}`:null],
+                          ['Phone',       b.phone,       b.phone?`tel:${b.phone}`:null],
+                          ...(isDirect?[['Home address', b.address, null] as [string,string,string|null]]:[] as [string,string,string|null][]),
+                          ['Check-in',   b.checkin,     null],
+                          ['Check-out',  b.checkout,    null],
+                          ['Nights',     String(nights), null],
+                          ...(isDirect?[
+                            ['Guests',   String(b.guests), null] as [string,string,string|null],
+                            ['Total',    `$${b.total.toFixed(2)}`, null] as [string,string,string|null],
+                          ]:[]),
+                          ['Booked on',  b.created_at.slice(0,10), null],
                         ].map(([label,val,href])=>(
                           <div key={label as string} style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
                             <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>{label}</div>
                             <div style={{fontWeight:500}}>
                               {href
                                 ? <a href={href as string} style={{color:'#0d5f6b',fontWeight:600}}>{val}</a>
-                                : missingTag(val as string)}
+                                : missingTag(val as string||'')}
                             </div>
                           </div>
                         ))}
                         <div style={{padding:'10px 14px',background:b.email_sent?'#edf7f0':'#fff8f5',borderRadius:8,border:`1px solid ${b.email_sent?'#b3e0c0':'#f5c2c0'}`}}>
-                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Confirmation email</div>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Notification email</div>
                           <div style={{fontWeight:700,color:b.email_sent?'#28704e':'#a74840'}}>{b.email_sent?'✓ Sent':'✕ Not sent'}</div>
                         </div>
                       </div>
@@ -267,7 +275,7 @@ export default function Admin() {
     </main>
   );
 
-  const confirmedBookings = bookings.filter(b => ['confirmed', 'payment_pending'].includes(b.status));
+  const confirmedBookings = bookings.filter(b => b.source === 'direct' && ['confirmed', 'payment_pending'].includes(b.status));
   const totalRevenue = confirmedBookings.reduce((s, b) => s + b.total, 0);
   const avgBooking = confirmedBookings.length ? totalRevenue / confirmedBookings.length : 0;
   const convRate = analytics?.unique_sessions ? ((analytics.funnel?.find((f: any) => f.step === 'Booking Confirmed')?.count || 0) / analytics.unique_sessions * 100).toFixed(1) : '0.0';
@@ -515,7 +523,7 @@ export default function Admin() {
         </>}
 
         {/* ── BOOKINGS ── */}
-        {tab === 'bookings' && <BookingsTab bookings={bookings} confirmedBookings={confirmedBookings} analytics={analytics} headers={headers} load={load}/>}
+        {tab === 'bookings' && <BookingsTab bookings={bookings} headers={headers} load={load}/>}
 
 
         {/* ── PAYMENTS ── */}
