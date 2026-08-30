@@ -159,6 +159,7 @@ function BookingsTab({ bookings, headers, load }: {
                   <td>
                     <div style={{fontWeight:600}}>{b.guest_name||<span style={{color:'#aaa',fontStyle:'italic',fontWeight:400}}>Not shared</span>}</div>
                     {isDirect && b.guests && <div style={{fontSize:11,color:'#888'}}>{b.guests} guest{b.guests!==1?'s':''}</div>}
+                    {!isDirect && b.uid && <div style={{fontSize:10,color:'#aaa',fontFamily:'monospace'}}>{b.uid.split('@')[0]}</div>}
                   </td>
                   <td>
                     {b.phone
@@ -193,7 +194,21 @@ function BookingsTab({ bookings, headers, load }: {
                         <div style={{padding:'10px 14px',background:SOURCE_COLORS[b.source]||'#555',borderRadius:8,color:'#fff'}}>
                           <div style={{fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,opacity:.8,marginBottom:4}}>Booked via</div>
                           <div style={{fontWeight:800,fontSize:16}}>{SOURCE_LABELS[b.source]||b.source}</div>
-                          {!isDirect && <div style={{fontSize:10,opacity:.75,marginTop:3}}>Contact guest via {SOURCE_LABELS[b.source]} app</div>}
+                          {!isDirect && b.uid && (() => {
+                            const code = b.uid.split('@')[0];
+                            const url = b.source === 'airbnb'
+                              ? `https://www.airbnb.com/hosting/reservations/details/${code}`
+                              : b.source === 'vrbo'
+                              ? `https://www.vrbo.com/owner/reservations`
+                              : null;
+                            return <>
+                              <div style={{fontSize:11,opacity:.85,marginTop:4,fontWeight:600}}>Ref: {code}</div>
+                              {url && <a href={url} target="_blank" rel="noopener noreferrer"
+                                style={{display:'inline-block',marginTop:6,fontSize:11,padding:'3px 10px',background:'rgba(255,255,255,.2)',borderRadius:12,color:'#fff',textDecoration:'none',fontWeight:600}}>
+                                View in {SOURCE_LABELS[b.source]} →
+                              </a>}
+                            </>;
+                          })()}
                         </div>
                         <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
                           <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Guest name</div>
