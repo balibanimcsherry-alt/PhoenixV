@@ -78,19 +78,21 @@ export default function Admin() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsDays, setAnalyticsDays] = useState(30);
+  const [emailStats, setEmailStats] = useState<any>(null);
 
   const headers = (t = token) => ({ Authorization: `Bearer ${t}` });
 
   const load = async (t = token) => {
     try {
-      const [s, c, b, a, cu] = await Promise.all([
+      const [s, c, b, a, cu, es] = await Promise.all([
         api<Settings>('/api/admin/settings', { headers: headers(t) }),
         api<any[]>('/api/admin/chat', { headers: headers(t) }),
         api<any[]>('/api/admin/bookings', { headers: headers(t) }),
         api<any>(`/api/admin/analytics?days=${analyticsDays}`, { headers: headers(t) }),
         api<any[]>('/api/admin/customers', { headers: headers(t) }),
+        api<any>('/api/admin/email-stats', { headers: headers(t) }),
       ]);
-      setSettings(s); setChats(c); setBookings(b); setAnalytics(a); setCustomers(cu);
+      setSettings(s); setChats(c); setBookings(b); setAnalytics(a); setCustomers(cu); setEmailStats(es);
     } catch { }
   };
 
@@ -155,7 +157,41 @@ export default function Admin() {
             {kpi('Conversion Rate', `${convRate}%`, 'visitor → booking')}
             {kpi('Avg Booking Value', `$${avgBooking.toFixed(0)}`, 'per stay')}
             {kpi('Open Inquiries', chats.length, 'guest messages')}
+            {kpi('Emails Sent', emailStats?.total_sent ?? '–', 'guest + OTA notifications')}
           </div>
+
+          {emailStats && (
+            <SectionCard title="Email delivery">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #e8efed' }}>
+                    <th style={{ textAlign: 'left', padding: '8px 12px', color: '#5a8a90', fontWeight: 600 }}>Type</th>
+                    <th style={{ textAlign: 'right', padding: '8px 12px', color: '#5a8a90', fontWeight: 600 }}>Sent</th>
+                    <th style={{ textAlign: 'right', padding: '8px 12px', color: '#5a8a90', fontWeight: 600 }}>Pending</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #f0f5f5' }}>
+                    <td style={{ padding: '10px 12px' }}>Guest booking confirmations (direct)</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0d5f6b' }}>{emailStats.direct_confirmations_sent}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: emailStats.direct_unsent > 0 ? '#c0392b' : '#7aabb0' }}>{emailStats.direct_unsent}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 12px' }}>OTA reservation notifications (owner)</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#0d5f6b' }}>{emailStats.ota_notifications_sent}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#7aabb0' }}>{emailStats.ota_pending}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid #e8efed', background: '#f5fafa' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 700 }}>Total</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#0d5f6b', fontSize: 16 }}>{emailStats.total_sent}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </SectionCard>
+          )}
 
           {analytics?.daily && <>
             <SectionCard title="Traffic — last 30 days">

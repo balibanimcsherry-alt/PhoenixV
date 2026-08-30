@@ -1008,6 +1008,20 @@ def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db),al
         'calendar_url':f'{base}/api/calendar.ics?token={settings.calendar_token}',
     }
 
+@app.get('/api/admin/email-stats')
+def admin_email_stats(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    direct_sent   = db.query(BookingRequest).filter(BookingRequest.email_sent==True).count()
+    direct_unsent = db.query(BookingRequest).filter(BookingRequest.email_sent==False, BookingRequest.email!='').count()
+    ota_sent      = db.query(IcalReservation).filter(IcalReservation.email_sent==True).count()
+    ota_pending   = db.query(IcalReservation).filter(IcalReservation.email_sent==False).count()
+    return {
+        'direct_confirmations_sent': direct_sent,
+        'direct_unsent': direct_unsent,
+        'ota_notifications_sent': ota_sent,
+        'ota_pending': ota_pending,
+        'total_sent': direct_sent + ota_sent,
+    }
+
 @app.get('/api/admin/guests')
 def admin_guests(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     """All guests from every source, newest first. Secured behind admin JWT."""
