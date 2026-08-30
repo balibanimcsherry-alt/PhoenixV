@@ -15,7 +15,7 @@ from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReser
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
-from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_name
+from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_info, _is_cross_calendar_block, _BLOCK_SUMMARIES
 from email_service import send_ota_reservation_notification
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
@@ -71,6 +71,16 @@ def _migrate_db():
             for col, typedef in new_cols:
                 if col not in existing:
                     conn.execute(text(f'ALTER TABLE app_settings ADD COLUMN {col} {typedef}'))
+            # ical_reservations guest contact fields
+            ical_existing = {c['name'] for c in inspector.get_columns('ical_reservations')} if 'ical_reservations' in inspector.get_table_names() else set()
+            ical_cols = [
+                ('guest_phone', "VARCHAR(60) DEFAULT ''"),
+                ('guest_email', "VARCHAR(200) DEFAULT ''"),
+                ('email_sent',  'BOOLEAN DEFAULT FALSE'),
+            ]
+            for col, typedef in ical_cols:
+                if col not in ical_existing:
+                    conn.execute(text(f'ALTER TABLE ical_reservations ADD COLUMN {col} {typedef}'))
             conn.commit()
     except Exception as e:
         print(f'DB migration warning: {e}')
@@ -581,6 +591,13 @@ def update_booking_status(booking_id:int,payload:_StatusIn,_:None=Depends(requir
     if not b: raise HTTPException(404,'Booking not found')
     b.status=payload.status
     db.commit()
+    # Send confirmation email when manually approved (pending_approval → confirmed)
+    if payload.status == 'confirmed' and not b.email_sent and b.email:
+        data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,
+              'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
+        sent=send_booking_confirmation(data)
+        send_owner_notification(data)
+        if sent: b.email_sent=True; db.commit()
     return {'ok':True,'id':b.id,'status':b.status}
 
 @app.get('/api/admin/chat')
@@ -889,21 +906,78 @@ async def _do_pms_sync(db: Session) -> int:
             try:
                 if date.fromisoformat(co) < today: continue
             except: continue
-            name = _extract_guest_name(ev.get('summary',''), ev.get('raw_description',''))
+            if _is_cross_calendar_block(platform, uid, ev.get('summary','')):
+                # Delete any stale DB row for this cross-platform block
+                stale = db.query(IcalReservation).filter(IcalReservation.uid==scoped).first()
+                if stale: db.delete(stale)
+                continue
+            info = _extract_guest_info(ev.get('summary',''), ev.get('raw_description',''))
+            name, phone, email = info['name'], info['phone'], info['email']
             existing = db.query(IcalReservation).filter(IcalReservation.uid==scoped).first()
             if existing:
                 existing.checkin=ci; existing.checkout=co; existing.guest_name=name
+                existing.guest_phone=phone; existing.guest_email=email
                 existing.summary=ev.get('summary',''); existing.raw_description=ev.get('raw_description','')
                 existing.synced_at=datetime.utcnow()
+                row = existing
             else:
-                db.add(IcalReservation(uid=scoped,platform=platform,checkin=ci,checkout=co,
-                    guest_name=name,summary=ev.get('summary',''),raw_description=ev.get('raw_description','')))
+                row = IcalReservation(uid=scoped,platform=platform,checkin=ci,checkout=co,
+                    guest_name=name,guest_phone=phone,guest_email=email,
+                    summary=ev.get('summary',''),raw_description=ev.get('raw_description',''),
+                    email_sent=False)
+                db.add(row)
                 total_new+=1
+            # Send notification once, only for future check-ins, only if not already sent
+            if not row.email_sent:
                 try:
-                    send_ota_reservation_notification({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co})
-                except: pass
+                    ci_date = date.fromisoformat(ci)
+                except Exception:
+                    ci_date = None
+                if ci_date and ci_date >= today:
+                    try:
+                        send_ota_reservation_notification({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co,'guest_phone':phone,'guest_email':email})
+                        row.email_sent = True
+                    except Exception as e:
+                        print(f'Email notification failed: {e}')
         db.commit()
+    _dedup_ical_reservations(db)
     return total_new
+
+def _dedup_ical_reservations(db: Session) -> None:
+    """
+    Remove cross-platform duplicates that slipped past the per-event filter.
+    Rule: if the same (checkin, checkout) window appears on multiple platforms
+    and one entry has no guest name (it's a block, not a real booking), delete it.
+    Also purge any remaining rows whose summary matches a known block word.
+    """
+    today_s = date.today().isoformat()
+    rows = db.query(IcalReservation).filter(IcalReservation.checkout >= today_s).all()
+
+    # 1. Delete any remaining rows with block-only summaries (stale from before the filter was added)
+    for r in rows:
+        if (r.summary or '').lower().strip() in _BLOCK_SUMMARIES and not r.guest_name:
+            db.delete(r)
+
+    db.commit()
+
+    # 2. Find exact (checkin, checkout) duplicates across platforms
+    from collections import defaultdict
+    rows = db.query(IcalReservation).filter(IcalReservation.checkout >= today_s).all()
+    by_window: dict = defaultdict(list)
+    for r in rows:
+        by_window[(r.checkin, r.checkout)].append(r)
+
+    for (_ci, _co), group in by_window.items():
+        if len(group) <= 1:
+            continue
+        # Sort: entries with a guest name first (they're real bookings)
+        group.sort(key=lambda r: (bool(r.guest_name), bool(r.guest_phone or r.guest_email)), reverse=True)
+        # Delete every entry after the first that has no guest name
+        for r in group[1:]:
+            if not r.guest_name:
+                db.delete(r)
+
+    db.commit()
 
 @app.post('/api/pms/sync')
 async def pms_sync(_:None=Depends(require_admin),db:Session=Depends(get_db)):
@@ -925,13 +999,36 @@ def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db),al
     base=settings.frontend_url.rstrip('/')
     return {
         'ota':[{'id':r.id,'uid':r.uid,'platform':r.platform,'checkin':r.checkin,'checkout':r.checkout,
-                'guest_name':r.guest_name,'summary':r.summary,'raw_description':r.raw_description,
+                'guest_name':r.guest_name,'guest_phone':r.guest_phone,'guest_email':r.guest_email,
+                'summary':r.summary,'raw_description':r.raw_description,
                 'notes':r.notes,'is_new':r.is_new,'synced_at':r.synced_at.isoformat() if r.synced_at else None} for r in ota],
         'direct':[{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,
                    'email':b.email,'phone':b.phone,'total':b.total,'status':b.status,'created_at':b.created_at.isoformat()} for b in direct],
         'last_synced':latest.synced_at.isoformat() if latest else None,
         'calendar_url':f'{base}/api/calendar.ics?token={settings.calendar_token}',
     }
+
+@app.get('/api/admin/guests')
+def admin_guests(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    """All guests from every source, newest first. Secured behind admin JWT."""
+    ota=db.query(IcalReservation).order_by(IcalReservation.checkin.desc()).all()
+    direct=db.query(BookingRequest).order_by(BookingRequest.checkin.desc()).all()
+    guests=[]
+    for r in ota:
+        guests.append({
+            'source':r.platform,'checkin':r.checkin,'checkout':r.checkout,
+            'name':r.guest_name,'phone':r.guest_phone,'email':r.guest_email,
+            'notes':r.notes,'synced_at':r.synced_at.isoformat() if r.synced_at else None,
+        })
+    for b in direct:
+        guests.append({
+            'source':'direct','checkin':b.checkin,'checkout':b.checkout,
+            'name':b.guest_name,'phone':b.phone,'email':b.email,
+            'guests':b.guests,'total':b.total,'status':b.status,
+            'created_at':b.created_at.isoformat(),
+        })
+    guests.sort(key=lambda g: g['checkin'], reverse=True)
+    return guests
 
 class _NotesIn(BaseModel): notes:str
 

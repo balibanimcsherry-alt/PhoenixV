@@ -11,6 +11,7 @@ const PL: Record<string, string> = {
 interface OTARes {
   id: number; uid: string; platform: string;
   checkin: string; checkout: string; guest_name: string;
+  guest_phone?: string; guest_email?: string;
   summary: string; raw_description: string; notes: string;
   is_new: boolean; synced_at: string | null;
 }
@@ -75,6 +76,17 @@ export function PMSTab({ token }: { token: string }) {
     setSyncing(false);
   };
 
+  const downloadGuests = async () => {
+    try {
+      const guests = await api<any[]>('/api/admin/guests', { headers });
+      const blob = new Blob([JSON.stringify(guests, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `coastal-haven-guests-${new Date().toISOString().slice(0,10)}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch (e: any) { setError(e?.message || 'Export failed'); }
+  };
+
   const saveNote = async (id: number) => {
     setNoteSaving(true);
     try {
@@ -129,6 +141,10 @@ export function PMSTab({ token }: { token: string }) {
         <h1 style={{ margin: 0 }}>Property Management</h1>
         <button className="btn" onClick={sync} disabled={syncing} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {syncing ? '⟳ Syncing…' : '⟳ Sync OTA Calendars'}
+        </button>
+        <button className="btn" onClick={downloadGuests}
+          style={{ background: '#0d5f6b', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+          ↓ Export Guest Data
         </button>
         {data.last_synced && (
           <span style={{ color: '#888', fontSize: 12 }}>Last synced: {data.last_synced.replace('T', ' ').slice(0, 16)}</span>
@@ -239,6 +255,12 @@ export function PMSTab({ token }: { token: string }) {
             )}
 
             {sel.ota && <>
+              {(sel.ota.guest_phone || sel.ota.guest_email) && (
+                <div style={{ background: '#f0f7f9', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 13 }}>
+                  {sel.ota.guest_phone && <div style={{ marginBottom: 4 }}><strong>Phone:</strong> {sel.ota.guest_phone}</div>}
+                  {sel.ota.guest_email && <div><strong>Email:</strong> <a href={`mailto:${sel.ota.guest_email}`} style={{ color: '#0d5f6b' }}>{sel.ota.guest_email}</a></div>}
+                </div>
+              )}
               {sel.ota.raw_description && (
                 <div style={{ marginBottom: 14 }}>
                   <strong style={{ fontSize: 13 }}>Guest info from {PL[sel.platform]}:</strong>

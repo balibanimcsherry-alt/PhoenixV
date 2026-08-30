@@ -99,23 +99,81 @@ def _parse_ical_events(ical_text: str) -> list[dict]:
     return events
 
 
-def _extract_guest_name(summary: str, description: str) -> str:
-    """Extract guest name from iCal summary or Airbnb-style description fields."""
+def _extract_guest_info(summary: str, description: str) -> dict:
+    """Extract guest name, phone, email from iCal summary/description. Returns dict."""
+    name = phone = email = ''
+    # Name from summary (e.g. "Reservation - John Doe" or "Airbnb (ABC123) - John Doe")
     if ' - ' in summary:
         candidate = summary.rsplit(' - ', 1)[-1].strip()
         if candidate and 'not available' not in candidate.lower() and len(candidate) < 80:
-            return candidate
+            name = candidate
+    # Parse Airbnb/VRBO DESCRIPTION key: value lines
     if description:
         first = last = ''
         for ln in description.split('\n'):
             ln = ln.strip()
-            if ln.startswith('FIRST NAME:'):
-                first = ln[11:].strip()
-            elif ln.startswith('LAST NAME:'):
-                last = ln[10:].strip()
+            k, _, v = ln.partition(':')
+            k = k.strip().upper(); v = v.strip()
+            if k == 'FIRST NAME':   first = v
+            elif k == 'LAST NAME':  last = v
+            elif k == 'PHONE':      phone = v
+            elif k == 'EMAIL':      email = v
         if first or last:
-            return f'{first} {last}'.strip()
-    return ''
+            name = f'{first} {last}'.strip()
+    return {'name': name, 'phone': phone, 'email': email}
+
+def _extract_guest_name(summary: str, description: str) -> str:
+    return _extract_guest_info(summary, description)['name']
+
+# UIDs from these domains appearing in another platform's feed = cross-calendar import
+_PLATFORM_UID_DOMAINS = {
+    'airbnb':  'airbnb.com',
+    'vrbo':    'vrbo.com',
+    'booking': 'booking.com',
+}
+
+# Exact-match (lowercased) summaries that are NEVER real guest bookings
+_BLOCK_SUMMARIES = {
+    'not available', 'blocked', 'hold', 'owner block', 'owner hold',
+    'maintenance', 'unavailable', 'closed', 'turnover',
+    # platforms sometimes use their own name as a block label
+    'airbnb', 'vrbo', 'booking.com',
+}
+
+# Tokens that, when found in another platform's summary, indicate a cross-import
+_PLATFORM_TOKENS: dict[str, set[str]] = {
+    'airbnb':  {'airbnb'},
+    'vrbo':    {'vrbo', 'homeaway'},
+    'booking': {'booking.com'},
+}
+
+def _is_cross_calendar_block(platform: str, uid: str, summary: str) -> bool:
+    """True when an event in this platform's feed originated from another platform."""
+    u = uid.lower()
+    s = summary.lower().strip()
+
+    # Our own export reflected back into an OTA feed
+    if 'coastalhaven' in u:
+        return True
+
+    # UID contains another platform's domain (e.g. airbnb.com UID inside VRBO feed)
+    for p, domain in _PLATFORM_UID_DOMAINS.items():
+        if p != platform and domain in u:
+            return True
+
+    # Summary is a known block/hold word (never a real booking)
+    if s in _BLOCK_SUMMARIES:
+        return True
+
+    # Summary contains a competing platform's name
+    # e.g. "Airbnb (HM123)" appearing in VRBO's feed
+    for p, tokens in _PLATFORM_TOKENS.items():
+        if p != platform:
+            for token in tokens:
+                if token in s:
+                    return True
+
+    return False
 
 
 async def sync_platform_ical(platform: str, url: str) -> list[dict]:

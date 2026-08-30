@@ -7,10 +7,10 @@ from config import settings
 log = logging.getLogger(__name__)
 
 # ── Unsplash beach/Gulf images (reliable CDN) ────────────────────────────────
-IMG_HERO_TEAL    = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=640&h=300&fit=crop&q=80'
-IMG_HERO_SUNSET  = 'https://images.unsplash.com/photo-1476673160081-cf065607f449?w=640&h=300&fit=crop&q=80'
-IMG_HERO_ARRIVAL = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=640&h=300&fit=crop&q=80'
-IMG_HERO_REVIEW  = 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=640&h=300&fit=crop&q=80'
+IMG_HERO_TEAL    = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=640&h=380&fit=crop&q=85'
+IMG_HERO_SUNSET  = 'https://images.unsplash.com/photo-1476673160081-cf065607f449?w=640&h=380&fit=crop&q=85'
+IMG_HERO_ARRIVAL = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=640&h=380&fit=crop&q=85'
+IMG_HERO_REVIEW  = 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=640&h=380&fit=crop&q=85'
 IMG_WAVE_BG      = 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=640&h=120&fit=crop&q=60'
 
 PROPERTY_NAME = 'Coastal Haven at Phoenix V'
@@ -18,90 +18,119 @@ PROPERTY_ADDR = '24400 Perdido Beach Blvd, Orange Beach, AL 36561'
 PROPERTY_URL  = 'https://orangebeachstay.com'
 SUPPORT_EMAIL = 'voiceorchatbot@gmail.com'
 
+# Deep ocean palette
+_C_OCEAN   = '#072d3a'   # darkest teal — footer, text
+_C_TEAL    = '#0a4f5e'   # primary brand teal
+_C_SEA     = '#1a8fa0'   # medium — links, accents
+_C_SEAFOAM = '#5ac8d8'   # light — dividers, highlights
+_C_SAND    = '#c8922a'   # warm sand gold
+_C_PEARL   = '#f3fafb'   # off-white backgrounds
+
 # ── Shared CSS ───────────────────────────────────────────────────────────────
-_CSS = """
-body,table,td,p,a,li{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
-table,td{mso-table-lspace:0;mso-table-rspace:0}
-img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}
-body{margin:0;padding:0;background:#e8f4f5}
-.wrapper{background:#e8f4f5;padding:28px 0}
-.shell{max-width:620px;margin:0 auto;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 6px 40px rgba(13,95,107,.15)}
+_CSS = f"""
+body,table,td,p,a,li{{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}}
+table,td{{mso-table-lspace:0;mso-table-rspace:0}}
+img{{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}}
+body{{margin:0;padding:0;background:linear-gradient(160deg,#ddf0f3 0%,#f4fafc 55%,#eaf5f0 100%)}}
+.wrapper{{padding:32px 0 48px}}
+.shell{{max-width:620px;margin:0 auto;background:#ffffff;border-radius:22px;overflow:hidden;
+  box-shadow:0 12px 64px rgba(7,45,58,.18),0 2px 12px rgba(7,45,58,.08)}}
+/* TOP STRIPE — brand colours */
+.top-stripe{{height:5px;background:linear-gradient(90deg,{_C_TEAL} 0%,{_C_SEA} 30%,{_C_SEAFOAM} 55%,{_C_SAND} 75%,{_C_TEAL} 100%)}}
 /* Hero */
-.hero{position:relative;font-size:0;line-height:0}
-.hero img{width:100%;display:block;max-height:300px;object-fit:cover}
-.hero-overlay{background:linear-gradient(180deg,rgba(5,30,40,.18) 0%,rgba(5,30,40,.70) 100%)}
-.hero-text{padding:0 36px 32px;color:#fff;margin-top:-80px;position:relative}
-.hero-eyebrow{font-size:11px;letter-spacing:2.5px;font-weight:700;text-transform:uppercase;opacity:.85;margin-bottom:6px}
-.hero-title{font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;line-height:1.2;margin:0;text-shadow:0 2px 12px rgba(0,0,0,.35)}
-.hero-sub{font-size:14px;opacity:.88;margin:8px 0 0}
+.hero-img{{width:100%;display:block;max-height:360px;object-fit:cover}}
+.hero-overlay{{margin-top:-8px}}
+.hero-text{{padding:0 44px 42px;color:#fff;position:relative}}
+.hero-eyebrow{{font-size:10px;letter-spacing:3px;font-weight:800;text-transform:uppercase;
+  opacity:.82;margin-bottom:10px;color:{_C_SEAFOAM}}}
+.hero-title{{font-family:Georgia,'Times New Roman',serif;font-size:34px;font-weight:700;
+  line-height:1.15;margin:0;text-shadow:0 3px 18px rgba(0,0,0,.45)}}
+.hero-sub{{font-size:14px;opacity:.85;margin:10px 0 0;font-style:italic}}
 /* Body */
-.body{padding:36px 40px}
-.greeting{font-size:17px;line-height:1.75;color:#1a3c3f;margin:0 0 24px}
+.body{{padding:42px 44px}}
+.greeting{{font-size:16px;line-height:1.8;color:#1a3840;margin:0 0 28px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}}
 /* Ref box */
-.ref-box{background:linear-gradient(135deg,#e8f5f7,#d4eef2);border:1px solid #b0dce4;border-radius:12px;padding:18px 24px;text-align:center;margin:0 0 28px}
-.ref-label{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#5a8a90;margin-bottom:6px}
-.ref-number{font-family:Georgia,serif;font-size:26px;font-weight:700;color:#0d5f6b;letter-spacing:1px}
+.ref-box{{background:linear-gradient(135deg,#e6f6f8,#cdedf3);border:1px solid #a8d8e4;
+  border-radius:14px;padding:20px 28px;text-align:center;margin:0 0 30px;
+  box-shadow:inset 0 1px 4px rgba(10,79,94,.06)}}
+.ref-label{{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:{_C_SEA};margin-bottom:8px}}
+.ref-number{{font-family:Georgia,serif;font-size:27px;font-weight:700;color:{_C_TEAL};letter-spacing:1.5px}}
 /* Date band */
-.date-band{border-radius:12px;overflow:hidden;border:1px solid #c8e4e8;margin:0 0 28px}
-.date-cell{padding:20px 24px;text-align:center;background:#f0fafc}
-.date-divider{width:1px;background:#c8e4e8}
-.date-label{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#5a8a90;margin-bottom:6px}
-.date-value{font-family:Georgia,serif;font-size:17px;font-weight:700;color:#0d2e33;line-height:1.3}
-.date-note{font-size:12px;color:#7aabb0;margin-top:4px}
+.date-band{{border-radius:14px;overflow:hidden;border:1px solid #b8dfe8;margin:0 0 30px}}
+.date-cell{{padding:22px 28px;text-align:center;
+  background:linear-gradient(160deg,#eef9fb,{_C_PEARL})}}
+.date-divider{{width:1px;background:linear-gradient(180deg,transparent,#a8d4dc,transparent)}}
+.date-label{{font-size:9px;font-weight:900;letter-spacing:2.5px;text-transform:uppercase;color:{_C_SEA};margin-bottom:8px}}
+.date-value{{font-family:Georgia,serif;font-size:17px;font-weight:700;color:{_C_OCEAN};line-height:1.3}}
+.date-note{{font-size:12px;color:#7aabb4;margin-top:5px;font-style:italic}}
 /* Detail rows */
-.detail-table{width:100%;border-radius:12px;overflow:hidden;border:1px solid #ddeef0;margin:0 0 28px;border-collapse:collapse}
-.detail-row td{padding:12px 20px;font-size:14px;border-bottom:1px solid #eaf3f4}
-.detail-row td:first-child{color:#5a8a90;white-space:nowrap;width:38%}
-.detail-row td:last-child{font-weight:600;color:#1a3c3f}
-.detail-total td{background:#e8f5f7}
-.detail-total td:first-child{font-weight:700;color:#1a3c3f}
-.detail-total td:last-child{font-size:20px;font-weight:800;color:#0d5f6b}
-/* Info box */
-.info-box{border-radius:12px;padding:22px 26px;margin:0 0 24px}
-.info-box-teal{background:#e8f5f7;border-left:4px solid #0d5f6b}
-.info-box-sand{background:#fdf6ee;border-left:4px solid #d9a14e}
-.info-box-green{background:#edf7f0;border-left:4px solid #28a745}
-.info-box h3{font-size:14px;font-weight:700;color:#0d5f6b;margin:0 0 12px;text-transform:uppercase;letter-spacing:.8px}
-.info-box-sand h3{color:#9a6200}
-.info-box-green h3{color:#1a6630}
-.info-box ul{margin:0;padding-left:18px}
-.info-box li{font-size:14px;color:#2a4a4e;line-height:2;padding-left:4px}
-/* Highlight stat */
-.stat-grid{margin:0 0 28px}
-.stat-cell{text-align:center;padding:18px 10px;background:#f0fafc;border-radius:10px}
-.stat-value{font-family:Georgia,serif;font-size:28px;font-weight:700;color:#0d5f6b;line-height:1}
-.stat-label{font-size:11px;color:#7aabb0;text-transform:uppercase;letter-spacing:1px;margin-top:5px}
+.detail-table{{width:100%;border-radius:14px;overflow:hidden;border:1px solid #d0eaee;
+  margin:0 0 30px;border-collapse:collapse}}
+.detail-row td{{padding:13px 22px;font-size:14px;border-bottom:1px solid #e4f2f5;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}}
+.detail-row:last-child td{{border-bottom:none}}
+.detail-row td:first-child{{color:#6a9eaa;white-space:nowrap;width:38%;font-weight:500}}
+.detail-row td:last-child{{font-weight:600;color:{_C_OCEAN}}}
+.detail-total td{{background:linear-gradient(135deg,#dff3f7,#cdedf3);border-bottom:none!important}}
+.detail-total td:first-child{{font-weight:700;color:{_C_TEAL}}}
+.detail-total td:last-child{{font-size:21px;font-weight:800;color:{_C_TEAL}}}
+/* Info boxes */
+.info-box{{border-radius:14px;padding:24px 28px;margin:0 0 26px}}
+.info-box-teal{{background:linear-gradient(135deg,#e4f6f8,#d6eff4);border-left:4px solid {_C_TEAL}}}
+.info-box-sand{{background:linear-gradient(135deg,#fdf5e4,#faecd4);border-left:4px solid {_C_SAND}}}
+.info-box-green{{background:linear-gradient(135deg,#eaf7ef,#d8f0e4);border-left:4px solid #2a9d5c}}
+.info-box h3{{font-size:11px;font-weight:800;color:{_C_TEAL};margin:0 0 14px;
+  text-transform:uppercase;letter-spacing:1.2px}}
+.info-box-sand h3{{color:#8a5e00}}
+.info-box-green h3{{color:#1a6630}}
+.info-box ul{{margin:0;padding-left:18px}}
+.info-box li{{font-size:14px;color:#234047;line-height:2.1;padding-left:2px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}}
+/* Stats */
+.stat-cell{{text-align:center;padding:22px 12px;
+  background:linear-gradient(160deg,#eef9fb,{_C_PEARL});border-radius:12px;
+  border:1px solid #c8e8ee}}
+.stat-value{{font-family:Georgia,serif;font-size:30px;font-weight:700;color:{_C_TEAL};line-height:1}}
+.stat-label{{font-size:10px;color:#7aabb4;text-transform:uppercase;letter-spacing:1.2px;margin-top:6px}}
 /* CTA */
-.cta{text-align:center;margin:28px 0 8px}
-.cta-btn{display:inline-block;background:linear-gradient(135deg,#0d5f6b,#0a4a55);color:#ffffff!important;text-decoration:none;padding:16px 44px;border-radius:999px;font-size:15px;font-weight:700;letter-spacing:.3px;box-shadow:0 6px 20px rgba(13,95,107,.35)}
-/* Wave divider */
-.wave-div{width:100%;height:6px;background:linear-gradient(90deg,#6dcdd6,#0d5f6b,#d9a14e,#6dcdd6);border-radius:0}
-/* Section band */
-.section-band{background:linear-gradient(135deg,#0d5f6b 0%,#0a4a55 100%);padding:28px 40px;color:#fff}
-.section-band h2{font-family:Georgia,serif;font-size:20px;margin:0 0 16px;font-weight:700}
-.band-item{display:flex;gap:12px;margin:0 0 10px;font-size:14px;align-items:flex-start}
-.band-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.cta{{text-align:center;margin:32px 0 10px}}
+.cta-btn{{display:inline-block;
+  background:linear-gradient(135deg,{_C_TEAL} 0%,{_C_SEA} 100%);
+  color:#ffffff!important;text-decoration:none;padding:18px 52px;
+  border-radius:999px;font-size:15px;font-weight:700;letter-spacing:.5px;
+  box-shadow:0 8px 28px rgba(10,79,94,.38),0 2px 6px rgba(10,79,94,.18)}}
+/* Wave accent */
+.wave-div{{height:7px;background:linear-gradient(90deg,
+  {_C_SEAFOAM} 0%,{_C_TEAL} 20%,{_C_SEA} 40%,{_C_SAND} 60%,{_C_SEA} 80%,{_C_SEAFOAM} 100%)}}
+/* Wave-bg content band */
+.wave-bg{{background-color:#edf8fa;background-image:url('{IMG_WAVE_BG}');
+  background-size:cover;background-position:center;background-repeat:no-repeat}}
+.wave-bg-inner{{background:rgba(238,248,250,.94);padding:28px 36px}}
 /* Footer */
-.footer{background:#0d2e33;padding:30px 40px;text-align:center}
-.footer-logo{font-family:Georgia,serif;font-size:18px;font-weight:700;color:#6dcdd6;margin:0 0 8px}
-.footer-addr{font-size:12px;color:#7aabb0;line-height:1.8;margin:0 0 14px}
-.footer-links{margin:0 0 14px}
-.footer-links a{color:#3db8c4;font-size:12px;text-decoration:none;margin:0 8px}
-.footer-legal{font-size:11px;color:#4a6e72}
-/* Watermark wave bg – subtle, below hero in content band */
-.wave-bg{background-color:#f5fbfc;background-image:url('""" + IMG_WAVE_BG + """');background-size:cover;background-position:center;background-repeat:no-repeat}
-.wave-bg-inner{background:rgba(245,251,252,.93);padding:24px 40px}
-@media only screen and (max-width:480px){
-  .body{padding:24px 20px!important}
-  .hero-text{padding:0 20px 24px!important}
-  .section-band{padding:22px 20px!important}
-  .footer{padding:24px 20px!important}
-  .date-cell{padding:14px!important}
-  .wave-bg-inner{padding:20px!important}
-}
+.footer{{background:linear-gradient(160deg,{_C_OCEAN} 0%,#082535 100%);padding:34px 44px;text-align:center}}
+.footer-logo{{font-family:Georgia,serif;font-size:19px;font-weight:700;
+  color:{_C_SAND};margin:0 0 10px;letter-spacing:.5px}}
+.footer-tagline{{font-size:12px;color:{_C_SEAFOAM};margin:0 0 16px;font-style:italic;opacity:.8}}
+.footer-addr{{font-size:12px;color:#7aacb8;line-height:2;margin:0 0 16px}}
+.footer-links{{margin:0 0 16px}}
+.footer-links a{{color:{_C_SEAFOAM};font-size:12px;text-decoration:none;margin:0 10px;opacity:.9}}
+.footer-links a:hover{{opacity:1}}
+.footer-divider{{height:1px;background:linear-gradient(90deg,transparent,{_C_TEAL},transparent);margin:0 0 14px}}
+.footer-legal{{font-size:11px;color:#3d6572;line-height:1.6}}
+@media only screen and (max-width:480px){{
+  .body{{padding:26px 22px!important}}
+  .hero-text{{padding:0 22px 28px!important}}
+  .hero-title{{font-size:26px!important}}
+  .footer{{padding:26px 22px!important}}
+  .date-cell{{padding:16px!important}}
+  .wave-bg-inner{{padding:22px!important}}
+  .ref-box{{padding:16px 18px!important}}
+}}
 """
 
 def _shell(hero_img: str, hero_gradient: str, eyebrow: str, title: str, subtitle: str, body_html: str) -> str:
+    year = datetime.now().year
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -115,12 +144,19 @@ def _shell(hero_img: str, hero_gradient: str, eyebrow: str, title: str, subtitle
 <div class="wrapper">
 <table class="shell" width="100%" cellpadding="0" cellspacing="0" role="presentation">
 
-  <!-- HERO -->
-  <tr><td class="hero" style="padding:0">
-    <img src="{hero_img}" alt="Orange Beach, Gulf of Mexico" width="640" style="width:100%;display:block;max-height:300px;object-fit:cover">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:{hero_gradient};margin-top:-6px">
+  <!-- TOP BRAND STRIPE -->
+  <tr><td class="top-stripe" style="padding:0;font-size:0;line-height:0">&nbsp;</td></tr>
+
+  <!-- HERO IMAGE -->
+  <tr><td style="padding:0;font-size:0;line-height:0">
+    <img class="hero-img" src="{hero_img}" alt="Coastal Haven — Orange Beach, AL" width="640">
+  </td></tr>
+
+  <!-- HERO TEXT OVER GRADIENT -->
+  <tr><td class="hero-overlay" style="background:{hero_gradient};padding:0">
+    <table width="100%" cellpadding="0" cellspacing="0">
       <tr><td class="hero-text">
-        <div class="hero-eyebrow">Coastal Haven · Orange Beach, AL</div>
+        <div class="hero-eyebrow">&#9670; Coastal Haven &nbsp;·&nbsp; Orange Beach, AL</div>
         <div class="hero-title">{title}</div>
         <div class="hero-sub">{subtitle}</div>
       </td></tr>
@@ -128,21 +164,31 @@ def _shell(hero_img: str, hero_gradient: str, eyebrow: str, title: str, subtitle
   </td></tr>
 
   <!-- WAVE ACCENT -->
-  <tr><td class="wave-div"></td></tr>
+  <tr><td class="wave-div" style="font-size:0;line-height:0">&nbsp;</td></tr>
 
   <!-- BODY -->
   <tr><td class="body">{body_html}</td></tr>
 
   <!-- FOOTER -->
   <tr><td class="footer">
-    <div class="footer-logo">🌊 {PROPERTY_NAME}</div>
-    <div class="footer-addr">{PROPERTY_ADDR}<br>Gulf of Mexico · White Sand · 14th Floor Views</div>
-    <div class="footer-links">
-      <a href="{PROPERTY_URL}">Book Direct</a> ·
-      <a href="mailto:{SUPPORT_EMAIL}">Contact Us</a> ·
-      <a href="{PROPERTY_URL}/#faq">FAQ</a>
+    <div class="footer-logo">&#127754; {PROPERTY_NAME}</div>
+    <div class="footer-tagline">Gulf-front luxury on Alabama's white-sand coast</div>
+    <div class="footer-addr">
+      {PROPERTY_ADDR}<br>
+      14th Floor &nbsp;·&nbsp; Gulf of Mexico Front &nbsp;·&nbsp; Private Beach Access
     </div>
-    <div class="footer-legal">© 2025 Coastal Haven. This is a transactional email related to your reservation.</div>
+    <div class="footer-divider"></div>
+    <div class="footer-links">
+      <a href="{PROPERTY_URL}">Book Direct &amp; Save</a>
+      &nbsp;·&nbsp;
+      <a href="mailto:{SUPPORT_EMAIL}">Contact Host</a>
+      &nbsp;·&nbsp;
+      <a href="{PROPERTY_URL}/#faq">FAQs</a>
+    </div>
+    <div class="footer-legal">
+      &copy; {year} Coastal Haven. This is a transactional email regarding your reservation.<br>
+      You are receiving this because you booked or inquired at {PROPERTY_URL}
+    </div>
   </td></tr>
 
 </table>
@@ -206,83 +252,119 @@ def send_booking_confirmation(booking: dict) -> bool:
     guests = booking.get('guests', 1)
 
     body = f"""
-<p class="greeting">Hi {first} 👋<br>
-Your stay at <strong>{PROPERTY_NAME}</strong> is confirmed and payment has been processed.
-We can't wait to welcome you to the Gulf Coast!</p>
+<p class="greeting">
+  Dear {first},<br><br>
+  Your reservation at <strong>{PROPERTY_NAME}</strong> is <strong>confirmed</strong>
+  and payment has been securely processed. We are thrilled to host you on
+  Alabama's beautiful Gulf Coast!
+</p>
 
+<!-- Booking reference -->
 <div class="ref-box">
-  <div class="ref-label">Booking Reference</div>
+  <div class="ref-label">Booking Confirmation Number</div>
   <div class="ref-number">{ref}</div>
+  <div style="font-size:12px;color:#6a9eaa;margin-top:6px">Keep this number for your records</div>
 </div>
 
-<!-- Dates -->
+<!-- Date band -->
 <table class="date-band" width="100%" cellpadding="0" cellspacing="0">
 <tr>
-  <td class="date-cell" width="45%">
-    <div class="date-label">Check-in</div>
+  <td class="date-cell" width="43%">
+    <div class="date-label">&#9658; Check-in</div>
     <div class="date-value">{ci}</div>
     <div class="date-note">After 4:00 PM</div>
   </td>
   <td class="date-divider" width="1"></td>
-  <td class="date-cell" width="45%">
-    <div class="date-label">Check-out</div>
+  <td style="text-align:center;padding:16px 8px;background:#e4f5f8;width:14%">
+    <div style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:{_C_TEAL};line-height:1">{nights}</div>
+    <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#7aabb4;margin-top:4px">nights</div>
+  </td>
+  <td class="date-divider" width="1"></td>
+  <td class="date-cell" width="43%">
+    <div class="date-label">&#9658; Check-out</div>
     <div class="date-value">{co}</div>
     <div class="date-note">By 10:00 AM</div>
   </td>
 </tr>
 </table>
 
-<!-- Details -->
+<!-- Booking details -->
 <table class="detail-table" width="100%" cellpadding="0" cellspacing="0">
-<tr class="detail-row"><td>Property</td><td>{PROPERTY_NAME}</td></tr>
-<tr class="detail-row"><td>Location</td><td>14th Floor · Gulf Front</td></tr>
-<tr class="detail-row"><td>Nights</td><td>{nights} nights</td></tr>
-<tr class="detail-row"><td>Guests</td><td>{guests}</td></tr>
-<tr class="detail-row"><td>Guest name</td><td>{name}</td></tr>
-<tr class="detail-row detail-total"><td>Total charged</td><td>{total}</td></tr>
+<tr class="detail-row"><td>Property</td><td><strong>{PROPERTY_NAME}</strong></td></tr>
+<tr class="detail-row"><td>Unit</td><td>Unit 1408 &nbsp;&middot;&nbsp; 14th Floor &nbsp;&middot;&nbsp; Gulf Front</td></tr>
+<tr class="detail-row"><td>Address</td><td>{PROPERTY_ADDR}</td></tr>
+<tr class="detail-row"><td>Guest</td><td>{name}</td></tr>
+<tr class="detail-row"><td>Guests</td><td>{guests} guest{"s" if guests != 1 else ""}</td></tr>
+<tr class="detail-row"><td>Duration</td><td>{nights} night{"s" if nights != 1 else ""}</td></tr>
+<tr class="detail-row detail-total"><td>Total Charged</td><td>{total}</td></tr>
 </table>
 
-<!-- Wave-bg section: What's next -->
-<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;border-radius:12px;overflow:hidden;border:1px solid #c8e4e8">
+<!-- What happens next — wave bg -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;border-radius:14px;overflow:hidden;border:1px solid #b8dfe8">
 <tr><td class="wave-bg"><div class="wave-bg-inner">
   <div class="info-box info-box-teal" style="margin:0">
-    <h3>📋 Before you arrive</h3>
+    <h3>&#128203; What happens next</h3>
     <ul>
-      <li>Door code &amp; full check-in instructions sent <strong>48 hours before</strong> arrival</li>
-      <li>Covered parking included — no reservation needed</li>
-      <li>Pool, hot tub &amp; direct Gulf beach access available 24/7</li>
-      <li>Full kitchen stocked with starter supplies for your first night</li>
+      <li><strong>48 hours before arrival</strong> — door code, WiFi details &amp; full check-in instructions emailed to you</li>
+      <li><strong>Day of arrival</strong> — check in any time after <strong>4:00 PM</strong></li>
+      <li><strong>Parking</strong> — covered garage included, no reservation needed, elevator to 14th floor</li>
+      <li><strong>Amenities</strong> — heated pool &amp; hot tub open 7 AM–10 PM; private Gulf beach access via east boardwalk</li>
+      <li><strong>Kitchen</strong> — fully equipped with starter supplies for your first night</li>
     </ul>
   </div>
 </div></td></tr>
 </table>
 
+<!-- Property highlights -->
 <div class="info-box info-box-sand">
-  <h3>🚫 Cancellation policy</h3>
+  <h3>&#127956; Property highlights</h3>
   <ul>
-    <li>Full refund if cancelled <strong>30+ days</strong> before check-in</li>
-    <li>50% refund if cancelled <strong>14–30 days</strong> before check-in</li>
-    <li>Non-refundable inside <strong>14 days</strong> of check-in</li>
+    <li>Panoramic Gulf of Mexico views from your private 14th-floor balcony</li>
+    <li>4 bedrooms &nbsp;·&nbsp; 4 bathrooms &nbsp;·&nbsp; sleeps up to 10</li>
+    <li>Beach chairs, umbrellas &amp; boogie boards provided</li>
+    <li>Smart TV, high-speed WiFi throughout &amp; full entertainment setup</li>
+    <li>Steps from Gulf State Park, restaurants &amp; watersports rentals</li>
+  </ul>
+</div>
+
+<!-- Cancellation policy -->
+<div class="info-box info-box-green">
+  <h3>&#10004; Cancellation &amp; refund policy</h3>
+  <ul>
+    <li><strong>30+ days before check-in</strong> — full refund</li>
+    <li><strong>14–30 days before check-in</strong> — 50% refund</li>
+    <li><strong>Within 14 days</strong> — non-refundable</li>
   </ul>
 </div>
 
 <div class="cta">
-  <a class="cta-btn" href="{PROPERTY_URL}">View Booking Details</a>
+  <a class="cta-btn" href="{PROPERTY_URL}">Visit Our Website</a>
 </div>
-<p style="text-align:center;font-size:13px;color:#7aabb0;margin-top:16px">
-  Questions? Reply to this email or write to <a href="mailto:{SUPPORT_EMAIL}" style="color:#0d5f6b">{SUPPORT_EMAIL}</a>
+<p style="text-align:center;font-size:13px;color:#7aabb0;margin-top:18px;line-height:1.7">
+  Questions before your trip? We're happy to help.<br>
+  Reply to this email or contact us at <a href="mailto:{SUPPORT_EMAIL}" style="color:{_C_SEA};font-weight:600">{SUPPORT_EMAIL}</a>
 </p>"""
 
     html = _shell(IMG_HERO_TEAL,
-        'linear-gradient(180deg,rgba(5,30,40,.15) 0%,rgba(5,50,60,.72) 100%)',
-        'Booking Confirmed ✓', 'Your Gulf Coast getaway is set!',
-        f'{nights} nights · {booking["checkin"]} → {booking["checkout"]}', body)
+        f'linear-gradient(160deg,rgba(5,30,40,.12) 0%,{_C_OCEAN}cc 100%)',
+        'Booking Confirmed &#10003;', 'Your Gulf Coast escape is officially booked!',
+        f'{nights} nights &nbsp;&middot;&nbsp; {booking["checkin"]} &#8594; {booking["checkout"]}', body)
 
     text = f"""Booking Confirmed — {ref}
+
 Hi {first}, your reservation at {PROPERTY_NAME} is confirmed.
-Check-in: {ci} (after 4 PM) | Check-out: {co} (by 10 AM)
-Nights: {nights} | Guests: {guests} | Total: {total}
-Door code sent 48h before arrival. Questions? {SUPPORT_EMAIL}"""
+
+Confirmation: {ref}
+Property:     {PROPERTY_NAME}, Unit 1408, 14th Floor
+Address:      {PROPERTY_ADDR}
+Check-in:     {ci} — after 4:00 PM
+Check-out:    {co} — by 10:00 AM
+Nights:       {nights}
+Guests:       {guests}
+Total:        {total}
+
+Door code & WiFi details will be emailed 48h before arrival.
+Questions? {SUPPORT_EMAIL}"""
 
     return _send(to, f'Booking Confirmed {ref} — {PROPERTY_NAME}', html, text)
 
@@ -593,46 +675,95 @@ def send_ota_reservation_notification(reservation: dict) -> bool:
     from datetime import date as _date
     platform = reservation.get('platform', 'ota')
     plabel   = _PLATFORM_LABEL.get(platform, platform.title())
-    pcolor   = _PLATFORM_COLOR.get(platform, '#0d5f6b')
+    pcolor   = _PLATFORM_COLOR.get(platform, _C_TEAL)
     guest    = reservation.get('guest_name') or 'Guest'
     checkin  = reservation.get('checkin', '')
     checkout = reservation.get('checkout', '')
+    phone    = reservation.get('phone', '') or reservation.get('guest_phone', '')
+    email    = reservation.get('email', '') or reservation.get('guest_email', '')
     try:
         nights = (_date.fromisoformat(checkout) - _date.fromisoformat(checkin)).days
     except:
         nights = 0
+    ci_fmt = _fmt(checkin)
+    co_fmt = _fmt(checkout)
+
+    contact_rows = ''
+    if phone:
+        contact_rows += f'<tr class="detail-row"><td>Phone</td><td><a href="tel:{phone}" style="color:{_C_SEA}">{phone}</a></td></tr>'
+    if email:
+        contact_rows += f'<tr class="detail-row"><td>Email</td><td><a href="mailto:{email}" style="color:{_C_SEA}">{email}</a></td></tr>'
 
     body = f"""
-<p class="greeting">New reservation via <strong style="color:{pcolor}">{plabel}</strong> — synced from iCal. 📅</p>
+<p class="greeting">
+  A new reservation via <strong style="color:{pcolor}">{plabel}</strong> was detected and saved. &#128197;
+</p>
 
-<div class="ref-box" style="background:linear-gradient(135deg,{pcolor}18,{pcolor}08);border-color:{pcolor}40">
-  <div class="ref-label" style="color:{pcolor}">Platform</div>
-  <div class="ref-number" style="color:{pcolor}">{plabel}</div>
+<!-- Platform badge -->
+<div style="text-align:center;margin:0 0 28px">
+  <span style="display:inline-block;background:{pcolor};color:#fff;
+    padding:10px 28px;border-radius:999px;font-size:15px;font-weight:700;
+    letter-spacing:.5px;box-shadow:0 4px 14px {pcolor}55">
+    {plabel}
+  </span>
 </div>
 
-<table class="detail-table" width="100%" cellpadding="0" cellspacing="0">
-<tr class="detail-row"><td>Guest</td><td>{guest}</td></tr>
-<tr class="detail-row"><td>Check-in</td><td><strong>{checkin}</strong></td></tr>
-<tr class="detail-row"><td>Check-out</td><td><strong>{checkout}</strong></td></tr>
-<tr class="detail-row detail-total"><td>Nights</td><td>{nights}</td></tr>
+<!-- Date band -->
+<table class="date-band" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+  <td class="date-cell" width="45%">
+    <div class="date-label">Check-in</div>
+    <div class="date-value">{ci_fmt}</div>
+  </td>
+  <td class="date-divider" width="1"></td>
+  <td class="date-cell" width="10%" style="background:#e8f6f8">
+    <div style="text-align:center;font-family:Georgia,serif;font-size:22px;
+      font-weight:700;color:{_C_TEAL}">{nights}</div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:1px;
+      text-transform:uppercase;color:#7aabb4;margin-top:4px">nights</div>
+  </td>
+  <td class="date-divider" width="1"></td>
+  <td class="date-cell" width="45%">
+    <div class="date-label">Check-out</div>
+    <div class="date-value">{co_fmt}</div>
+  </td>
+</tr>
 </table>
 
-<div class="cta">
-  <a class="cta-btn" href="{PROPERTY_URL}/admin">View in Admin Dashboard</a>
+<!-- Guest details -->
+<table class="detail-table" width="100%" cellpadding="0" cellspacing="0">
+<tr class="detail-row"><td>Guest name</td><td><strong>{guest}</strong></td></tr>
+{contact_rows}
+<tr class="detail-row"><td>Nights</td><td>{nights} night{"s" if nights != 1 else ""}</td></tr>
+<tr class="detail-row"><td>Source</td><td>{plabel} iCal sync</td></tr>
+</table>
+
+<div class="info-box info-box-teal">
+  <h3>&#128203; Action checklist</h3>
+  <ul>
+    <li>Review dates in your {plabel} host dashboard</li>
+    <li>Schedule cleaning for check-out day ({co_fmt})</li>
+    <li>Send door code &amp; WiFi details 48 h before check-in</li>
+    {'<li>Guest contact available above — reach out if needed</li>' if (phone or email) else '<li>No contact info extracted — use ' + plabel + ' host inbox</li>'}
+  </ul>
 </div>
-<p style="text-align:center;font-size:12px;color:#aaa;margin-top:12px">
-  Guest messages are only available in the {plabel} host app.
+
+<div class="cta">
+  <a class="cta-btn" href="{PROPERTY_URL}/admin">Open Admin Dashboard</a>
+</div>
+<p style="text-align:center;font-size:12px;color:#8aacb4;margin-top:14px">
+  Full guest messaging is available in the {plabel} host app.
 </p>"""
 
     html = _shell(IMG_HERO_TEAL,
-        f'linear-gradient(180deg,{pcolor}28 0%,{pcolor}88 100%)',
+        f'linear-gradient(160deg,{pcolor}30 0%,{_C_OCEAN}cc 100%)',
         f'New {plabel} Reservation',
-        f'{guest} · {checkin} → {checkout}',
-        f'{nights} night{"s" if nights != 1 else ""} · synced from iCal',
+        f'{guest} &nbsp;·&nbsp; {checkin} &#8594; {checkout}',
+        f'{nights} night{"s" if nights != 1 else ""} &nbsp;·&nbsp; synced from iCal',
         body)
 
     return _send(owner,
-        f'New {plabel} reservation — {guest} · {checkin}',
+        f'New {plabel} reservation — {guest} · {checkin} ({nights}n)',
         html,
         f'New {plabel} reservation: {guest}, {checkin} → {checkout} ({nights} nights). View at {PROPERTY_URL}/admin')
 
