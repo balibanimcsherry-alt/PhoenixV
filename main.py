@@ -983,8 +983,7 @@ async def _do_pms_sync(db: Session) -> int:
                     email_sent=False)
                 db.add(row)
                 total_new+=1
-            # Send notification once, only for future check-ins, only if not already sent
-            if not row.email_sent:
+                # Notify only on first insert, only for future check-ins
                 try:
                     ci_date = date.fromisoformat(ci)
                 except Exception:
