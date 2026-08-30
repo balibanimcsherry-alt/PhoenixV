@@ -81,6 +81,7 @@ async def _startup():
     except Exception as e: print(f'DB init warning: {e}')
     _migrate_db()
     asyncio.create_task(_pricelabs_sync_loop())
+    asyncio.create_task(_pms_sync_loop())
 app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'https://www.orangebeachstay.com','https://coastal-haven.onrender.com','http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
 
 _SKIP_ANALYTICS={'/docs','/openapi.json','/favicon.ico'}
@@ -816,7 +817,15 @@ async def ai_chat(payload:AIChatIn):
         return {'reply':"Sorry, I'm having a wave of trouble right now. Please use the contact form and we'll reply shortly!"}
 
 # ── PMS ─────────────────────────────────────────────────────────────────────
-_pms_last_synced: str | None = None
+async def _pms_sync_loop():
+    await asyncio.sleep(10)  # let DB settle on startup
+    while True:
+        try:
+            db = next(get_db())
+            try: await _do_pms_sync(db)
+            finally: db.close()
+        except Exception as e: print(f'PMS auto-sync error: {e}')
+        await asyncio.sleep(6 * 3600)  # every 6 hours
 
 def _consolidate_daily_blocks(events: list[dict]) -> list[dict]:
     """Merge consecutive 1-day blocks (common VRBO iCal format) into multi-night stays."""
@@ -845,7 +854,6 @@ def _consolidate_daily_blocks(events: list[dict]) -> list[dict]:
     return merged
 
 async def _do_pms_sync(db: Session) -> int:
-    global _pms_last_synced
     platforms = [
         ('airbnb', settings.airbnb_ical_url),
         ('vrbo',   settings.vrbo_ical_url),
@@ -885,13 +893,13 @@ async def _do_pms_sync(db: Session) -> int:
                     send_ota_reservation_notification({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co})
                 except: pass
         db.commit()
-    _pms_last_synced = datetime.utcnow().isoformat()
     return total_new
 
 @app.post('/api/pms/sync')
 async def pms_sync(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     n=await _do_pms_sync(db)
-    return {'ok':True,'new_reservations':n,'synced_at':_pms_last_synced}
+    latest=db.query(IcalReservation).order_by(IcalReservation.synced_at.desc()).first()
+    return {'ok':True,'new_reservations':n,'synced_at':latest.synced_at.isoformat() if latest else None}
 
 @app.get('/api/pms/reservations')
 def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db),all:bool=False):
@@ -903,6 +911,7 @@ def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db),al
         direct_q=direct_q.filter(BookingRequest.checkout>=today_s)
     ota=ota_q.order_by(IcalReservation.checkin).all()
     direct=direct_q.order_by(BookingRequest.checkin).all()
+    latest=db.query(IcalReservation).order_by(IcalReservation.synced_at.desc()).first()
     base=settings.frontend_url.rstrip('/')
     return {
         'ota':[{'id':r.id,'uid':r.uid,'platform':r.platform,'checkin':r.checkin,'checkout':r.checkout,
@@ -910,7 +919,7 @@ def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db),al
                 'notes':r.notes,'is_new':r.is_new,'synced_at':r.synced_at.isoformat() if r.synced_at else None} for r in ota],
         'direct':[{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,
                    'email':b.email,'phone':b.phone,'total':b.total,'status':b.status,'created_at':b.created_at.isoformat()} for b in direct],
-        'last_synced':_pms_last_synced,
+        'last_synced':latest.synced_at.isoformat() if latest else None,
         'calendar_url':f'{base}/api/calendar.ics?token={settings.calendar_token}',
     }
 
