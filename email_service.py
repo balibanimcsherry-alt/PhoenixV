@@ -582,6 +582,62 @@ def send_owner_notification(booking: dict) -> bool:
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# OTA RESERVATION NOTIFICATION (owner — new iCal reservation found)
+# ════════════════════════════════════════════════════════════════════════════
+_PLATFORM_COLOR = {'airbnb': '#FF5A5F', 'vrbo': '#3D5A80', 'booking': '#003580'}
+_PLATFORM_LABEL = {'airbnb': 'Airbnb', 'vrbo': 'VRBO', 'booking': 'Booking.com'}
+
+def send_ota_reservation_notification(reservation: dict) -> bool:
+    owner = settings.smtp_user
+    if not owner: return False
+    from datetime import date as _date
+    platform = reservation.get('platform', 'ota')
+    plabel   = _PLATFORM_LABEL.get(platform, platform.title())
+    pcolor   = _PLATFORM_COLOR.get(platform, '#0d5f6b')
+    guest    = reservation.get('guest_name') or 'Guest'
+    checkin  = reservation.get('checkin', '')
+    checkout = reservation.get('checkout', '')
+    try:
+        nights = (_date.fromisoformat(checkout) - _date.fromisoformat(checkin)).days
+    except:
+        nights = 0
+
+    body = f"""
+<p class="greeting">New reservation via <strong style="color:{pcolor}">{plabel}</strong> — synced from iCal. 📅</p>
+
+<div class="ref-box" style="background:linear-gradient(135deg,{pcolor}18,{pcolor}08);border-color:{pcolor}40">
+  <div class="ref-label" style="color:{pcolor}">Platform</div>
+  <div class="ref-number" style="color:{pcolor}">{plabel}</div>
+</div>
+
+<table class="detail-table" width="100%" cellpadding="0" cellspacing="0">
+<tr class="detail-row"><td>Guest</td><td>{guest}</td></tr>
+<tr class="detail-row"><td>Check-in</td><td><strong>{checkin}</strong></td></tr>
+<tr class="detail-row"><td>Check-out</td><td><strong>{checkout}</strong></td></tr>
+<tr class="detail-row detail-total"><td>Nights</td><td>{nights}</td></tr>
+</table>
+
+<div class="cta">
+  <a class="cta-btn" href="{PROPERTY_URL}/admin">View in Admin Dashboard</a>
+</div>
+<p style="text-align:center;font-size:12px;color:#aaa;margin-top:12px">
+  Guest messages are only available in the {plabel} host app.
+</p>"""
+
+    html = _shell(IMG_HERO_TEAL,
+        f'linear-gradient(180deg,{pcolor}28 0%,{pcolor}88 100%)',
+        f'New {plabel} Reservation',
+        f'{guest} · {checkin} → {checkout}',
+        f'{nights} night{"s" if nights != 1 else ""} · synced from iCal',
+        body)
+
+    return _send(owner,
+        f'New {plabel} reservation — {guest} · {checkin}',
+        html,
+        f'New {plabel} reservation: {guest}, {checkin} → {checkout} ({nights} nights). View at {PROPERTY_URL}/admin')
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # PREVIEW helpers (return raw HTML, no send)
 # ════════════════════════════════════════════════════════════════════════════
 def preview_booking_confirmation() -> str:

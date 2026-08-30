@@ -16,6 +16,7 @@ from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegis
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
 from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_name
+from email_service import send_ota_reservation_notification
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
     preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request)
@@ -880,16 +881,11 @@ async def _do_pms_sync(db: Session) -> int:
                 db.add(IcalReservation(uid=scoped,platform=platform,checkin=ci,checkout=co,
                     guest_name=name,summary=ev.get('summary',''),raw_description=ev.get('raw_description','')))
                 total_new+=1
+                try:
+                    send_ota_reservation_notification({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co})
+                except: pass
         db.commit()
     _pms_last_synced = datetime.utcnow().isoformat()
-    if total_new>0 and settings.caretaker_email:
-        try:
-            from email_service import _send
-            _send(settings.caretaker_email,
-                f'Coastal Haven: {total_new} new reservation{"s" if total_new>1 else ""}',
-                f'<p>{total_new} new reservation(s) added. <a href="{settings.frontend_url}/caretaker">View in caretaker portal</a>.</p>',
-                f'{total_new} new reservation(s). Visit {settings.frontend_url}/caretaker')
-        except: pass
     return total_new
 
 @app.post('/api/pms/sync')
