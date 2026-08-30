@@ -17,6 +17,7 @@ from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
 from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_info, _is_cross_calendar_block, _BLOCK_SUMMARIES
 from email_service import send_ota_reservation_notification
+from email_reader import fetch_ota_guest_info
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
     preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request)
@@ -108,6 +109,44 @@ def _backfill_guest_info():
     except Exception as e:
         print(f'Guest info backfill warning: {e}')
 
+def _apply_email_guest_info(db: Session) -> int:
+    """Fetch booking emails via IMAP and update matching IcalReservation records."""
+    try:
+        parsed = fetch_ota_guest_info()
+    except Exception as e:
+        print(f'Email reader error: {e}'); return 0
+    updated = 0
+    for item in parsed:
+        code = item.get('confirmation_code', '').strip()
+        if not code:
+            continue
+        row = db.query(IcalReservation).filter(IcalReservation.uid.contains(code)).first()
+        if not row:
+            continue
+        changed = False
+        if item.get('name') and not row.guest_name:
+            row.guest_name = item['name']; changed = True
+        if item.get('phone') and not row.guest_phone:
+            row.guest_phone = item['phone']; changed = True
+        if item.get('email') and not row.guest_email:
+            row.guest_email = item['email']; changed = True
+        if changed:
+            updated += 1
+    if updated:
+        db.commit()
+    print(f'Email sync: updated {updated} reservations from inbox')
+    return updated
+
+async def _email_sync_loop():
+    await asyncio.sleep(60)  # let server settle first
+    while True:
+        try:
+            with SessionLocal() as db:
+                await asyncio.to_thread(_apply_email_guest_info, db)
+        except Exception as e:
+            print(f'Email sync loop error: {e}')
+        await asyncio.sleep(3600)  # every hour
+
 @app.on_event('startup')
 async def _startup():
     try: Base.metadata.create_all(bind=engine)
@@ -116,6 +155,7 @@ async def _startup():
     _backfill_guest_info()
     asyncio.create_task(_pricelabs_sync_loop())
     asyncio.create_task(_pms_sync_loop())
+    asyncio.create_task(_email_sync_loop())
 app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'https://www.orangebeachstay.com','https://coastal-haven.onrender.com','http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
 
 _SKIP_ANALYTICS={'/docs','/openapi.json','/favicon.ico'}
@@ -1078,6 +1118,22 @@ def pms_notes(res_id:int,payload:_NotesIn,_:None=Depends(require_admin),db:Sessi
     if not r: raise HTTPException(404,'Not found')
     r.notes=payload.notes; db.commit()
     return {'ok':True}
+
+class _GuestInfoIn(BaseModel):
+    guest_name:str=''; guest_phone:str=''; guest_email:str=''
+
+@app.patch('/api/admin/ical/{res_id}/guest')
+def update_ical_guest(res_id:int,payload:_GuestInfoIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    r=db.get(IcalReservation,res_id)
+    if not r: raise HTTPException(404,'Reservation not found')
+    r.guest_name=payload.guest_name; r.guest_phone=payload.guest_phone; r.guest_email=payload.guest_email
+    db.commit()
+    return {'ok':True}
+
+@app.post('/api/admin/fetch-emails')
+async def admin_fetch_emails(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    n = await asyncio.to_thread(_apply_email_guest_info, db)
+    return {'updated': n}
 
 # ── Caretaker auth ───────────────────────────────────────────────────────────
 class _CaretakerLogin(BaseModel): username:str; password:str

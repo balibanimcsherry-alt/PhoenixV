@@ -79,6 +79,11 @@ function BookingsTab({ bookings, headers, load }: {
 }) {
   const [expanded, setExpanded] = React.useState<string|null>(null);
   const [srcFilter, setSrcFilter] = React.useState<string>('all');
+  const [editingId, setEditingId] = React.useState<string|null>(null);
+  const [editForm, setEditForm] = React.useState({guest_name:'',guest_phone:'',guest_email:''});
+  const [editSaving, setEditSaving] = React.useState(false);
+  const [fetchingEmails, setFetchingEmails] = React.useState(false);
+  const [fetchMsg, setFetchMsg] = React.useState('');
 
   const direct   = bookings.filter(b => b.source === 'direct');
   const ota      = bookings.filter(b => b.source !== 'direct');
@@ -121,18 +126,37 @@ function BookingsTab({ bookings, headers, load }: {
     )}
 
     <SectionCard title="All reservations">
-      {/* Source filter */}
-      <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
-        {(['all','direct','airbnb','vrbo','booking'] as const).map(s=>(
-          <button key={s} onClick={()=>setSrcFilter(s)}
-            style={{padding:'4px 14px',borderRadius:20,border:'1px solid',fontSize:12,fontWeight:600,cursor:'pointer',
-              borderColor: srcFilter===s ? (SOURCE_COLORS[s]||'#0d5f6b') : '#d0e4e8',
-              background:  srcFilter===s ? (SOURCE_COLORS[s]||'#0d5f6b') : '#fff',
-              color:       srcFilter===s ? '#fff' : '#555'}}>
-            {s==='all'?'All':SOURCE_LABELS[s]}
-            <span style={{marginLeft:6,opacity:.8}}>({s==='all'?bookings.length:bookings.filter(b=>b.source===s).length})</span>
+      {/* Toolbar */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:8}}>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          {(['all','direct','airbnb','vrbo','booking'] as const).map(s=>(
+            <button key={s} onClick={()=>setSrcFilter(s)}
+              style={{padding:'4px 14px',borderRadius:20,border:'1px solid',fontSize:12,fontWeight:600,cursor:'pointer',
+                borderColor: srcFilter===s ? (SOURCE_COLORS[s]||'#0d5f6b') : '#d0e4e8',
+                background:  srcFilter===s ? (SOURCE_COLORS[s]||'#0d5f6b') : '#fff',
+                color:       srcFilter===s ? '#fff' : '#555'}}>
+              {s==='all'?'All':SOURCE_LABELS[s]}
+              <span style={{marginLeft:6,opacity:.8}}>({s==='all'?bookings.length:bookings.filter(b=>b.source===s).length})</span>
+            </button>
+          ))}
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          {fetchMsg && <span style={{fontSize:12,color:'#28704e',fontWeight:600}}>{fetchMsg}</span>}
+          <button
+            disabled={fetchingEmails}
+            onClick={async()=>{
+              setFetchingEmails(true); setFetchMsg('');
+              try {
+                const r = await api<{updated:number}>('/api/admin/fetch-emails',{method:'POST',headers:headers()});
+                setFetchMsg(`✓ ${r.updated} reservation${r.updated!==1?'s':''} updated from inbox`);
+                if(r.updated>0) load();
+              } catch { setFetchMsg('Could not read inbox — check SMTP credentials'); }
+              finally { setFetchingEmails(false); }
+            }}
+            style={{padding:'5px 14px',borderRadius:8,border:'1px solid #0d5f6b',background:'#f0fafb',color:'#0d5f6b',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
+            {fetchingEmails ? 'Checking inbox…' : '📥 Fetch from email'}
           </button>
-        ))}
+        </div>
       </div>
 
       {filtered.length === 0
@@ -244,6 +268,42 @@ function BookingsTab({ bookings, headers, load }: {
                           <div style={{fontWeight:700,color:b.email_sent?'#28704e':'#a74840'}}>{b.email_sent?'✓ Sent':'✕ Not sent'}</div>
                         </div>
                       </div>
+                      {/* Edit guest details inline form */}
+                      {editingId === b.id ? (
+                        <div style={{marginTop:14,padding:'14px 16px',background:'#fff',borderRadius:8,border:'1px solid #c5dde2'}}>
+                          <div style={{fontWeight:700,fontSize:13,color:'#0d5f6b',marginBottom:10}}>Edit guest details</div>
+                          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+                            {(['guest_name','guest_phone','guest_email'] as const).map(field=>(
+                              <div key={field}>
+                                <div style={{fontSize:11,fontWeight:600,color:'#5a8a90',marginBottom:4,textTransform:'uppercase'}}>{field.replace('guest_','').replace('_',' ')}</div>
+                                <input value={editForm[field]} onChange={e=>setEditForm(f=>({...f,[field]:e.target.value}))}
+                                  placeholder={field==='guest_email'?'email@example.com':field==='guest_phone'?'+1 (555) 000-0000':'Full name'}
+                                  style={{width:'100%',padding:'6px 10px',borderRadius:6,border:'1px solid #c5dde2',fontSize:13,boxSizing:'border-box'}}/>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{display:'flex',gap:8,marginTop:12}}>
+                            <button disabled={editSaving}
+                              onClick={async()=>{
+                                setEditSaving(true);
+                                await api(`/api/admin/ical/${b.db_id}/guest`,{method:'PATCH',headers:headers(),body:JSON.stringify(editForm)});
+                                setEditSaving(false); setEditingId(null); load();
+                              }}
+                              style={{padding:'6px 18px',borderRadius:6,background:'#0d5f6b',color:'#fff',border:'none',fontWeight:700,fontSize:13,cursor:'pointer'}}>
+                              {editSaving ? 'Saving…' : 'Save'}
+                            </button>
+                            <button onClick={()=>setEditingId(null)}
+                              style={{padding:'6px 14px',borderRadius:6,background:'#f0f4f5',color:'#555',border:'1px solid #d0e4e8',fontSize:13,cursor:'pointer'}}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={e=>{e.stopPropagation();setEditingId(b.id);setEditForm({guest_name:b.guest_name,guest_phone:b.phone,guest_email:b.email});}}
+                          style={{marginTop:12,padding:'5px 14px',borderRadius:6,border:'1px solid #0d5f6b',background:'#f0fafb',color:'#0d5f6b',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                          ✏️ Edit guest details
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )}
