@@ -66,6 +66,26 @@ function SectionCard({ title, children }: { title: string; children: React.React
   return <div className="admin-card"><h2>{title}</h2>{children}</div>;
 }
 
+function SendConfirmBtn({dbId, headers, onSent}: {dbId: number; headers: ()=>Record<string,string>; onSent: ()=>void}) {
+  const [state, setState] = React.useState<'idle'|'sending'|'done'|'err'>('idle');
+  if (state === 'done') return <span style={{color:'#28704e',fontWeight:700,fontSize:12}}>✓ Sent</span>;
+  return (
+    <button disabled={state==='sending'}
+      onClick={async e => {
+        e.stopPropagation();
+        if (!confirm('Send booking confirmation email to this guest now?')) return;
+        setState('sending');
+        try {
+          await api(`/api/admin/bookings/${dbId}/send-confirmation`, {method:'POST', headers:headers()});
+          setState('done'); onSent();
+        } catch { setState('err'); }
+      }}
+      style={{padding:'5px 12px',borderRadius:6,background:'#0d5f6b',color:'#fff',border:'none',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+      {state==='sending'?'Sending…':state==='err'?'Failed — retry':'Send to guest'}
+    </button>
+  );
+}
+
 const SOURCE_LABELS: Record<string,string> = {direct:'Direct',airbnb:'Airbnb',vrbo:'VRBO',booking:'Booking.com'};
 const SOURCE_COLORS: Record<string,string> = {direct:'#0d5f6b',airbnb:'#e84393',vrbo:'#1557a0',booking:'#003580'};
 
@@ -264,8 +284,11 @@ function BookingsTab({ bookings, headers, load }: {
                           <div style={{fontWeight:800,fontSize:18,color:'#0d5f6b'}}>${b.total.toFixed(2)}</div>
                         </div>}
                         <div style={{padding:'10px 14px',background:b.email_sent?'#edf7f0':'#fff8f5',borderRadius:8,border:`1px solid ${b.email_sent?'#b3e0c0':'#f5c2c0'}`}}>
-                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Notification</div>
-                          <div style={{fontWeight:700,color:b.email_sent?'#28704e':'#a74840'}}>{b.email_sent?'✓ Sent':'✕ Not sent'}</div>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Confirmation email</div>
+                          <div style={{fontWeight:700,color:b.email_sent?'#28704e':'#a74840',marginBottom:b.email_sent?0:8}}>{b.email_sent?'✓ Sent to guest':'Not sent yet'}</div>
+                          {!b.email_sent && isDirect && b.email && (
+                            <SendConfirmBtn dbId={b.db_id} headers={headers} onSent={load}/>
+                          )}
                         </div>
                       </div>
                       {/* Edit guest details inline form */}

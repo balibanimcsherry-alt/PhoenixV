@@ -542,13 +542,6 @@ async def checkout(payload:BookingIn,db:Session=Depends(get_db),authorization:st
 def get_booking(booking_id:int,db:Session=Depends(get_db)):
     b=db.get(BookingRequest,booking_id)
     if not b: raise HTTPException(404,'Booking not found')
-    # Send confirmation email on first view of success page (fallback if webhook not configured)
-    if not b.email_sent and b.email and b.status in ('payment_pending','confirmed'):
-        data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
-        sent=send_booking_confirmation(data)
-        send_owner_notification(data)
-        if sent:
-            b.email_sent=True; db.commit()
     return {'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total,'status':b.status,'created_at':b.created_at.isoformat()}
 
 @app.post('/api/stripe/webhook')
@@ -570,11 +563,10 @@ async def stripe_webhook(request:Request,db:Session=Depends(get_db)):
             b=db.get(BookingRequest,bid)
             if b:
                 b.status='confirmed'; db.commit(); db.refresh(b)
-                if not b.email_sent and b.email:
+                # Owner notification only — guest confirmation requires manual approval
+                if b.email:
                     data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
-                    sent=send_booking_confirmation(data)
                     send_owner_notification(data)
-                    if sent: b.email_sent=True; db.commit()
     return {'ok':True}
 
 @app.post('/api/chat/messages')
@@ -656,13 +648,11 @@ def update_booking_status(booking_id:int,payload:_StatusIn,_:None=Depends(requir
     if not b: raise HTTPException(404,'Booking not found')
     b.status=payload.status
     db.commit()
-    # Send confirmation email when manually approved (pending_approval → confirmed)
-    if payload.status == 'confirmed' and not b.email_sent and b.email:
+    # Owner notification only — guest confirmation email requires manual send
+    if payload.status == 'confirmed' and b.email:
         data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,
               'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
-        sent=send_booking_confirmation(data)
         send_owner_notification(data)
-        if sent: b.email_sent=True; db.commit()
     return {'ok':True,'id':b.id,'status':b.status}
 
 @app.get('/api/admin/chat')
@@ -1129,6 +1119,16 @@ def update_ical_guest(res_id:int,payload:_GuestInfoIn,_:None=Depends(require_adm
     r.guest_name=payload.guest_name; r.guest_phone=payload.guest_phone; r.guest_email=payload.guest_email
     db.commit()
     return {'ok':True}
+
+@app.post('/api/admin/bookings/{booking_id}/send-confirmation')
+def admin_send_confirmation(booking_id:int,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    b=db.get(BookingRequest,booking_id)
+    if not b: raise HTTPException(404,'Booking not found')
+    if not b.email: raise HTTPException(400,'No guest email on this booking')
+    data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
+    sent=send_booking_confirmation(data)
+    if sent: b.email_sent=True; db.commit()
+    return {'ok':sent}
 
 @app.post('/api/admin/fetch-emails')
 async def admin_fetch_emails(_:None=Depends(require_admin),db:Session=Depends(get_db)):
