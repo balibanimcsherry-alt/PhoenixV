@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { PMSTab } from './PMS';
 import { CalendarTab } from './CalendarTab';
 import { TasksTab } from './TasksTab';
@@ -64,6 +64,151 @@ function TestEmailButton({ token }: { token: string }) {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className="admin-card"><h2>{title}</h2>{children}</div>;
+}
+
+function BookingsTab({ bookings, confirmedBookings, analytics, headers, load }: {
+  bookings: any[]; confirmedBookings: any[]; analytics: any;
+  headers: () => Record<string,string>; load: () => void;
+}) {
+  const [expanded, setExpanded] = React.useState<number|null>(null);
+
+  const cancelled     = bookings.filter(b => b.status === 'cancelled').length;
+  const emailSentCount= bookings.filter(b => b.email_sent).length;
+  const totalRev      = confirmedBookings.reduce((s, b) => s + b.total, 0);
+
+  const byMonth: Record<string,number> = {};
+  confirmedBookings.forEach(b => { const m = b.created_at.slice(0,7); byMonth[m]=(byMonth[m]||0)+1; });
+  const monthData = Object.entries(byMonth).sort().slice(-6).map(([month,count])=>({month:month.slice(5),count}));
+
+  const revenueByDay: Record<string,number> = {};
+  confirmedBookings.forEach(b => { const d=b.created_at.slice(0,10); revenueByDay[d]=(revenueByDay[d]||0)+b.total; });
+
+  const missingTag = (v: string) => v
+    ? <span>{v}</span>
+    : <span style={{background:'#fde7e5',color:'#a74840',fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:4}}>MISSING</span>;
+
+  return <>
+    <h1>Bookings</h1>
+    <div className="kpi-grid">
+      {kpi('Total Bookings', bookings.length, 'all time')}
+      {kpi('Confirmed', bookings.filter(b=>b.status==='confirmed').length, 'paid & active')}
+      {kpi('Revenue', `$${totalRev.toLocaleString('en-US',{maximumFractionDigits:0})}`, 'confirmed stays')}
+      {kpi('Pending Approval', bookings.filter(b=>b.status==='pending_approval').length, 'awaiting review')}
+      {kpi('Cancelled', cancelled, 'all time')}
+      {kpi('Confirmations Sent', emailSentCount, 'emails delivered')}
+    </div>
+
+    {analytics?.daily && analytics.daily.some((d:any)=>revenueByDay[d.date]) && (
+      <SectionCard title="Revenue by booking date">
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={analytics.daily.map((d:any)=>({date:d.date,revenue:revenueByDay[d.date]||0}))}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8efed"/>
+            <XAxis dataKey="date" tickFormatter={(d:string)=>d.slice(5)} tick={{fontSize:11}}/>
+            <YAxis tick={{fontSize:11}} tickFormatter={(v:number)=>`$${v}`}/>
+            <Tooltip formatter={(v:any)=>[`$${Number(v).toFixed(0)}`,'Revenue']}/>
+            <Line type="monotone" dataKey="revenue" stroke="#0d5f6b" strokeWidth={2} dot={false}/>
+          </LineChart>
+        </ResponsiveContainer>
+      </SectionCard>
+    )}
+
+    {monthData.length > 0 && (
+      <SectionCard title="Confirmed bookings by month">
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={monthData}>
+            <XAxis dataKey="month" tick={{fontSize:12}}/>
+            <YAxis tick={{fontSize:12}} allowDecimals={false}/>
+            <Tooltip/>
+            <Bar dataKey="count" fill="#0d5f6b" radius={[6,6,0,0]} name="Bookings"/>
+          </BarChart>
+        </ResponsiveContainer>
+      </SectionCard>
+    )}
+
+    <SectionCard title="All bookings">
+      {bookings.length === 0
+        ? <p style={{color:'#888',padding:'20px 0'}}>No bookings yet.</p>
+        : <table className="admin-table" style={{fontSize:13}}>
+          <thead>
+            <tr>
+              <th>Ref</th><th>Guest</th><th>Phone</th><th>Email</th>
+              <th>Check-in</th><th>Check-out</th><th>Nights</th><th>Guests</th>
+              <th>Total</th><th>Status</th><th>Email</th><th>Booked</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {bookings.map(b => {
+              const nights = Math.round((new Date(b.checkout).getTime()-new Date(b.checkin).getTime())/86400000);
+              const ref    = `#CHV-${String(b.id).padStart(4,'0')}`;
+              const open   = expanded === b.id;
+              const hasMissing = !b.guest_name || !b.email || !b.phone || !b.address;
+              return <React.Fragment key={b.id}>
+                <tr style={{cursor:'pointer',background:open?'#f0f9fa':hasMissing?'#fffaf8':undefined}}
+                    onClick={()=>setExpanded(open?null:b.id)}>
+                  <td><strong>{ref}</strong>{hasMissing&&<span style={{marginLeft:6,fontSize:9,background:'#fde7e5',color:'#a74840',padding:'1px 5px',borderRadius:4,fontWeight:700}}>!</span>}</td>
+                  <td>{b.guest_name||<span style={{color:'#c0392b',fontWeight:600}}>Missing</span>}</td>
+                  <td style={{fontSize:12}}>{b.phone||<span style={{color:'#c0392b'}}>Missing</span>}</td>
+                  <td style={{fontSize:12}}>{b.email?<a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a>:<span style={{color:'#c0392b'}}>Missing</span>}</td>
+                  <td>{b.checkin}</td>
+                  <td>{b.checkout}</td>
+                  <td>{nights}</td>
+                  <td>{b.guests}</td>
+                  <td><strong>${b.total.toFixed(2)}</strong></td>
+                  <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
+                  <td>{b.email_sent?<span style={{color:'#28704e',fontWeight:700}}>✓</span>:<span style={{color:'#bbb'}}>No</span>}</td>
+                  <td style={{fontSize:11}}>{b.created_at.slice(0,10)}</td>
+                  <td onClick={e=>e.stopPropagation()}>
+                    {!['cancelled'].includes(b.status)&&(
+                      <button style={{fontSize:11,padding:'3px 8px',background:'#fde7e5',border:'1px solid #f5c2c0',borderRadius:5,color:'#a74840',cursor:'pointer'}}
+                        onClick={async()=>{
+                          if(!confirm(`Cancel ${ref}?`))return;
+                          await api(`/api/admin/bookings/${b.id}/status`,{method:'PATCH',headers:headers(),body:JSON.stringify({status:'cancelled'})});
+                          load();
+                        }}>Cancel</button>
+                    )}
+                  </td>
+                </tr>
+                {open&&(
+                  <tr style={{background:'#f5fbfc'}}>
+                    <td colSpan={13} style={{padding:'16px 20px'}}>
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:12,fontSize:13}}>
+                        {[
+                          ['Full name',     b.guest_name,  null],
+                          ['Email',         b.email,       b.email?`mailto:${b.email}`:null],
+                          ['Phone',         b.phone,       b.phone?`tel:${b.phone}`:null],
+                          ['Home address',  b.address,     null],
+                          ['Booking ref',   ref,           null],
+                          ['Check-in',      b.checkin,     null],
+                          ['Check-out',     b.checkout,    null],
+                          ['Nights',        String(nights),null],
+                          ['Guests',        String(b.guests),null],
+                          ['Total charged', `$${b.total.toFixed(2)}`,null],
+                          ['Booked on',     b.created_at.slice(0,16).replace('T',' '),null],
+                        ].map(([label,val,href])=>(
+                          <div key={label as string} style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                            <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>{label}</div>
+                            <div style={{fontWeight:500}}>
+                              {href
+                                ? <a href={href as string} style={{color:'#0d5f6b',fontWeight:600}}>{val}</a>
+                                : missingTag(val as string)}
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{padding:'10px 14px',background:b.email_sent?'#edf7f0':'#fff8f5',borderRadius:8,border:`1px solid ${b.email_sent?'#b3e0c0':'#f5c2c0'}`}}>
+                          <div style={{color:'#5a8a90',fontWeight:700,fontSize:10,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Confirmation email</div>
+                          <div style={{fontWeight:700,color:b.email_sent?'#28704e':'#a74840'}}>{b.email_sent?'✓ Sent':'✕ Not sent'}</div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>;
+            })}
+          </tbody>
+        </table>
+      }
+    </SectionCard>
+  </>;
 }
 
 export default function Admin() {
@@ -370,162 +515,8 @@ export default function Admin() {
         </>}
 
         {/* ── BOOKINGS ── */}
-        {tab === 'bookings' && (() => {
-          const [expandedBooking, setExpandedBooking] = React.useState<number|null>(null);
-          const cancelled = bookings.filter(b => b.status === 'cancelled').length;
-          const emailSentCount = bookings.filter(b => b.email_sent).length;
-          const totalRev = confirmedBookings.reduce((s: number, b: any) => s + b.total, 0);
+        {tab === 'bookings' && <BookingsTab bookings={bookings} confirmedBookings={confirmedBookings} analytics={analytics} headers={headers} load={load}/>}
 
-          // monthly bookings for bar chart
-          const byMonth: Record<string, number> = {};
-          confirmedBookings.forEach((b: any) => {
-            const m = b.created_at.slice(0, 7);
-            byMonth[m] = (byMonth[m] || 0) + 1;
-          });
-          const monthData = Object.entries(byMonth).sort().slice(-6).map(([month, count]) => ({ month: month.slice(5), count }));
-
-          // revenue by day aligned to analytics daily
-          const revenueByDay: Record<string, number> = {};
-          confirmedBookings.forEach((b: any) => { const d = b.created_at.slice(0,10); revenueByDay[d] = (revenueByDay[d]||0)+b.total; });
-
-          return <>
-          <h1>Bookings</h1>
-          <div className="kpi-grid">
-            {kpi('Total Bookings', bookings.length, 'all time')}
-            {kpi('Confirmed', bookings.filter((b:any) => b.status === 'confirmed').length, 'paid & active')}
-            {kpi('Revenue', `$${totalRev.toLocaleString('en-US',{maximumFractionDigits:0})}`, 'confirmed stays')}
-            {kpi('Pending Approval', bookings.filter((b:any) => b.status === 'pending_approval').length, 'awaiting review')}
-            {kpi('Cancelled', cancelled, 'all time')}
-            {kpi('Confirmations Sent', emailSentCount, 'emails delivered')}
-          </div>
-
-          {/* Revenue over time */}
-          {analytics?.daily && analytics.daily.some((d: any) => revenueByDay[d.date]) && (
-            <SectionCard title="Revenue by booking date">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={analytics.daily.map((d: any) => ({ date: d.date, revenue: revenueByDay[d.date] || 0 }))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e8efed" />
-                  <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
-                  <Tooltip formatter={(v: any) => [`$${Number(v).toFixed(0)}`, 'Revenue']} />
-                  <Line type="monotone" dataKey="revenue" stroke="#0d5f6b" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </SectionCard>
-          )}
-
-          {monthData.length > 0 && (
-            <SectionCard title="Confirmed bookings by month">
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={monthData}>
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#0d5f6b" radius={[6,6,0,0]} name="Bookings" />
-                </BarChart>
-              </ResponsiveContainer>
-            </SectionCard>
-          )}
-
-          <SectionCard title="All bookings">
-            <table className="admin-table" style={{ fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th>Ref</th><th>Guest</th><th>Phone</th><th>Email</th>
-                  <th>Check-in</th><th>Check-out</th><th>Nights</th><th>Guests</th>
-                  <th>Total</th><th>Status</th><th>Sent</th><th>Booked</th><th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((b: any) => {
-                  const nights = Math.round((new Date(b.checkout).getTime() - new Date(b.checkin).getTime()) / 86400000);
-                  const ref = `#CHV-${String(b.id).padStart(4,'0')}`;
-                  const expanded = expandedBooking === b.id;
-                  const missing = !b.guest_name || !b.email || !b.phone || !b.address;
-                  const missingTag = (v: string) => v
-                    ? v
-                    : <span style={{background:'#fde7e5',color:'#a74840',fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:4}}>MISSING</span>;
-                  return <React.Fragment key={b.id}>
-                    <tr style={{ cursor: 'pointer', background: expanded ? '#f0f9fa' : missing ? '#fffaf8' : undefined }}
-                        onClick={() => setExpandedBooking(expanded ? null : b.id)}>
-                      <td><strong>{ref}</strong>{missing && <span style={{marginLeft:6,fontSize:9,background:'#fde7e5',color:'#a74840',padding:'1px 5px',borderRadius:4,fontWeight:700}}>!</span>}</td>
-                      <td>{b.guest_name || <span style={{color:'#c0392b',fontWeight:600,fontSize:12}}>Missing</span>}</td>
-                      <td style={{ fontSize: 12 }}>{b.phone || <span style={{color:'#c0392b',fontSize:12}}>Missing</span>}</td>
-                      <td style={{ fontSize: 12 }}>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a> : <span style={{color:'#c0392b',fontSize:12}}>Missing</span>}</td>
-                      <td>{b.checkin}</td>
-                      <td>{b.checkout}</td>
-                      <td>{nights}</td>
-                      <td>{b.guests}</td>
-                      <td><strong>${b.total.toFixed(2)}</strong></td>
-                      <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
-                      <td>{b.email_sent ? <span style={{color:'#28704e',fontWeight:700}}>✓</span> : <span style={{color:'#bbb',fontSize:12}}>No</span>}</td>
-                      <td style={{ fontSize: 11 }}>{b.created_at.slice(0,10)}</td>
-                      <td onClick={e=>e.stopPropagation()}>
-                        {!['cancelled'].includes(b.status) && (
-                          <button style={{ fontSize: 11, padding: '3px 8px', background: '#fde7e5', border: '1px solid #f5c2c0', borderRadius: 5, color: '#a74840', cursor: 'pointer' }}
-                            onClick={async () => {
-                              if (!confirm(`Cancel ${ref}?`)) return;
-                              await api(`/api/admin/bookings/${b.id}/status`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status: 'cancelled' }) });
-                              load();
-                            }}>Cancel</button>
-                        )}
-                      </td>
-                    </tr>
-                    {expanded && (
-                      <tr style={{ background: '#f5fbfc' }}>
-                        <td colSpan={13} style={{ padding: '16px 20px' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14, fontSize: 13 }}>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Full name</div>
-                              <div style={{fontWeight:600}}>{missingTag(b.guest_name)}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Email</div>
-                              <div>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b',fontWeight:600}}>{b.email}</a> : missingTag('')}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Phone</div>
-                              <div>{b.phone ? <a href={`tel:${b.phone}`} style={{color:'#0d5f6b',fontWeight:600}}>{b.phone}</a> : missingTag('')}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0',gridColumn:'span 2'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Home address</div>
-                              <div style={{fontWeight:500}}>{missingTag(b.address)}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Booking ref</div>
-                              <div style={{fontWeight:700}}>{ref}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Stay</div>
-                              <div>{b.checkin} → {b.checkout} · <strong>{nights}n</strong> · {b.guests} guest{b.guests!==1?'s':''}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Total charged</div>
-                              <div style={{fontSize:18,fontWeight:800,color:'#0d5f6b'}}>${b.total.toFixed(2)}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Status</div>
-                              <span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span>
-                            </div>
-                            <div style={{padding:'10px 14px',background: b.email_sent ? '#edf7f0' : '#fff8f5',borderRadius:8,border:`1px solid ${b.email_sent?'#b3e0c0':'#f5c2c0'}`}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Confirmation email</div>
-                              <div style={{fontWeight:700,color: b.email_sent ? '#28704e' : '#a74840'}}>{b.email_sent ? '✓ Sent' : '✕ Not sent'}</div>
-                            </div>
-                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
-                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Booked on</div>
-                              <div>{b.created_at.slice(0,16).replace('T',' ')}</div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>;
-                })}
-              </tbody>
-            </table>
-          </SectionCard>
-          </>;
-        })()}
 
         {/* ── PAYMENTS ── */}
         {tab === 'payments' && <>
