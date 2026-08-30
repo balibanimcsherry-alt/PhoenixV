@@ -150,12 +150,14 @@ def _apply_email_guest_info(db: Session) -> int:
         if not row:
             continue
         changed = False
-        name  = (item.get('name')  or '').strip()
-        phone = (item.get('phone') or '').strip()
-        email = (item.get('email') or '').strip()
-        if name  and not row.guest_name:  row.guest_name  = name;  changed = True
-        if phone and not row.guest_phone: row.guest_phone = phone; changed = True
-        if email and not row.guest_email: row.guest_email = email; changed = True
+        name     = (item.get('name')     or '').strip()
+        phone    = (item.get('phone')    or '').strip()
+        email    = (item.get('email')    or '').strip()
+        checkout = (item.get('checkout') or '').strip()
+        if name     and not row.guest_name:  row.guest_name  = name;     changed = True
+        if phone    and not row.guest_phone: row.guest_phone = phone;    changed = True
+        if email    and not row.guest_email: row.guest_email = email;    changed = True
+        if checkout and not row.checkout:    row.checkout    = checkout; changed = True
         if changed:
             updated += 1
             print(f'  Email sync matched: {platform} {checkin} -> {name or phone or email}')

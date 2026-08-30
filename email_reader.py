@@ -137,6 +137,54 @@ def _dates_from_subject(subject: str, email_date: str = '') -> tuple[str, str]:
 
     return '', ''
 
+def _dates_from_body(text: str, email_date: str = '') -> tuple[str, str]:
+    """
+    Extract check-in / check-out from email body text.
+    Handles:
+      "Sep 4 – Sep 7, 2025"   (full range with year)
+      "Sep 4 – 7, 2025"       (same month, with year)
+      "Check-out: Sep 7, 2025"
+      "Departs Sep 7"
+    Returns (checkin, checkout) — either or both may be empty.
+    """
+    yr = datetime.now().year
+    if email_date:
+        ym = re.search(r'(\d{4})', email_date)
+        if ym:
+            yr = int(ym.group(1))
+
+    s = text
+    for ch in ['–', '—', '‒']:
+        s = s.replace(ch, '-')
+
+    # Full range "Month D - [Month] D, YYYY"
+    m = re.search(
+        r'([A-Za-z]+)\s+(\d{1,2})\s*-+\s*(?:([A-Za-z]+)\s+)?(\d{1,2}),?\s+(\d{4})',
+        s
+    )
+    if m:
+        mon1, d1 = m.group(1), int(m.group(2))
+        mon2, d2, y = m.group(3) or m.group(1), int(m.group(4)), int(m.group(5))
+        ci = _to_iso(mon1, d1, y)
+        co = _to_iso(mon2, d2, y)
+        if ci and co:
+            return ci, co
+
+    # "Check-out" / "Checkout" / "Departs" label
+    checkout = ''
+    for pat in [
+        r'Check.?out[:\s]+([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})?',
+        r'Depart(?:s|ure)?[:\s]+([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})?',
+    ]:
+        m2 = re.search(pat, s, re.I)
+        if m2:
+            y2 = int(m2.group(3)) if m2.group(3) else yr
+            checkout = _to_iso(m2.group(1), int(m2.group(2)), y2) or ''
+            break
+
+    return '', checkout
+
+
 def _name_from_subject(subject: str) -> str:
     """Extract guest name from 'Reservation confirmed - Name arrives Month D'."""
     m = re.search(r'Reservation confirmed\s*[-–—]\s*(.+?)\s+arrives\s+[A-Za-z]+\s+\d', subject)
@@ -192,14 +240,27 @@ def _parse_airbnb(plain: str, html: str, subject: str, email_date: str = "") -> 
     # Name: subject is most reliable for confirmed reservations
     name = _name_from_subject(subject) or _name_from_body(plain, html)
 
-    # Dates: subject line is reliable and structured
+    # Dates: subject first, then body fills in missing checkout
     checkin, checkout = _dates_from_subject(subject, email_date)
+    if not checkout:
+        _, checkout = _dates_from_body(all_text, email_date)
+    # If body has a full range and subject had no checkin, use body's checkin
+    if not checkin:
+        checkin, co2 = _dates_from_body(all_text, email_date)
+        if not checkout:
+            checkout = co2
+
+    # Phone — Airbnb sometimes includes it in newer confirmation emails
+    phone = ''
+    pm = re.search(r'(?:Phone|Mobile|Tel)[:\s]+([\+\d][\d\s\(\)\-\.]{6,20})', all_text, re.I)
+    if pm:
+        phone = re.sub(r'[^\d\+]', '', pm.group(1)).strip()
 
     return {
         'platform': 'airbnb',
         'confirmation_code': code,
         'name': name,
-        'phone': '',
+        'phone': phone,
         'email': '',
         'checkin':  checkin,
         'checkout': checkout,
