@@ -54,7 +54,7 @@ async def _pricelabs_sync_loop():
                         print(f'PriceLabs auto-sync: {len(daily)} days cached')
                     finally: db.close()
         except Exception as e: print(f'PriceLabs sync error: {e}')
-        await asyncio.sleep(3600)  # 1 hour
+        await asyncio.sleep(30)
 
 def _migrate_db():
     """Add any missing columns to existing tables without dropping data."""
