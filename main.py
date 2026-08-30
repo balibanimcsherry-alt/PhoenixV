@@ -55,10 +55,30 @@ async def _pricelabs_sync_loop():
         except Exception as e: print(f'PriceLabs sync error: {e}')
         await asyncio.sleep(3600)  # 1 hour
 
+def _migrate_db():
+    """Add any missing columns to existing tables without dropping data."""
+    try:
+        from sqlalchemy import inspect, text
+        with engine.connect() as conn:
+            inspector = inspect(engine)
+            existing = {c['name'] for c in inspector.get_columns('app_settings')} if 'app_settings' in inspector.get_table_names() else set()
+            new_cols = [
+                ('airbnb_markup_percent', 'FLOAT DEFAULT 17'),
+                ('vrbo_markup_percent',   'FLOAT DEFAULT 20'),
+                ('booking_markup_percent','FLOAT DEFAULT 25'),
+            ]
+            for col, typedef in new_cols:
+                if col not in existing:
+                    conn.execute(text(f'ALTER TABLE app_settings ADD COLUMN {col} {typedef}'))
+            conn.commit()
+    except Exception as e:
+        print(f'DB migration warning: {e}')
+
 @app.on_event('startup')
 async def _startup():
     try: Base.metadata.create_all(bind=engine)
     except Exception as e: print(f'DB init warning: {e}')
+    _migrate_db()
     asyncio.create_task(_pricelabs_sync_loop())
 app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'https://www.orangebeachstay.com','https://coastal-haven.onrender.com','http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])
 
@@ -1105,6 +1125,10 @@ def admin_financials(_:None=Depends(require_admin),year:int=0,db:Session=Depends
     return {'year':year,'revenue':total_rev,'expenses':total_exp,'net':total_rev-total_exp,'bookings':len(bookings),'direct_nights':direct_nights,'ota_nights':ota_nights,'total_nights':total_nights,'occupancy':round(total_nights/avail*100,1),'adr':round(total_rev/direct_nights,2) if direct_nights else 0,'revpan':round(total_rev/avail,2),'monthly':monthly,'expenses_by_cat':exp_by_cat}
 
 # ── Pricing (PriceLabs) ─────────────────────────────────────────────────────
+def _markup_meta(db: Session) -> dict:
+    s = get_settings(db)
+    return {'airbnb_markup_percent': s.airbnb_markup_percent, 'vrbo_markup_percent': s.vrbo_markup_percent, 'booking_markup_percent': s.booking_markup_percent}
+
 @app.get('/api/admin/pricing')
 async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:Session=Depends(get_db)):
     import calendar as _cal
@@ -1112,24 +1136,25 @@ async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:
     if not month: month=date.today().month
     _,days=_cal.monthrange(year,month)
     start=f'{year}-{month:02d}-01'; end=f'{year}-{month:02d}-{days:02d}'
+    markups=_markup_meta(db)
     cached=db.query(DailyPrice).filter(DailyPrice.date>=start,DailyPrice.date<=end).all()
     if cached:
         daily=[{'date':p.date,'price':p.price,'min_stay':p.min_stay,'demand_color':p.demand_color,'occupancy':p.occupancy} for p in cached]
-        return {'daily':daily,'year':year,'month':month}
+        return {'daily':daily,'year':year,'month':month,**markups}
     if not settings.pricelabs_api_key or not settings.pricelabs_listing_id:
-        return {'daily':[],'error':'PriceLabs not configured — add PRICELABS_API_KEY and PRICELABS_LISTING_ID on Render'}
+        return {'daily':[],'error':'PriceLabs not configured — add PRICELABS_API_KEY and PRICELABS_LISTING_ID on Render',**markups}
     # Don't request past dates — PriceLabs may reject them
     api_start=max(date.today(),date(year,month,1)).isoformat()
     if api_start > end:  # Entire month is in the past
-        return {'daily':[],'year':year,'month':month}
-    headers={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
+        return {'daily':[],'year':year,'month':month,**markups}
+    hdrs={'X-API-Key':settings.pricelabs_api_key,'Content-Type':'application/json'}
     payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':api_start,'end_date':end}]}
     async with httpx.AsyncClient(timeout=15) as c:
-        r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=headers,json=payload)
-        if r.status_code>=400: return {'daily':[],'error':f'PriceLabs API error ({r.status_code}) — click Sync Now to retry'}
+        r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=hdrs,json=payload)
+        if r.status_code>=400: return {'daily':[],'error':f'PriceLabs API error ({r.status_code}) — click Sync Now to retry',**markups}
         results=r.json()
         daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
-        return {'daily':daily,'year':year,'month':month}
+        return {'daily':daily,'year':year,'month':month,**markups}
 
 @app.get('/api/pricing/calendar')
 def public_pricing_calendar(year:int,month:int,db:Session=Depends(get_db)):

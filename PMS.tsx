@@ -43,6 +43,7 @@ function Badge({ platform }: { platform: string }) {
 
 export function PMSTab({ token }: { token: string }) {
   const [data, setData] = useState<PMSData | null>(null);
+  const [error, setError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [platform, setPlatform] = useState('all');
   const [selected, setSelected] = useState<string | null>(null);
@@ -52,14 +53,25 @@ export function PMSTab({ token }: { token: string }) {
   const headers = { Authorization: `Bearer ${token}` };
 
   const load = async () => {
-    try { setData(await api<PMSData>('/api/pms/reservations', { headers })); } catch {}
+    setError('');
+    try {
+      setData(await api<PMSData>('/api/pms/reservations', { headers }));
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load PMS data');
+    }
   };
 
   useEffect(() => { load(); }, []);
 
   const sync = async () => {
     setSyncing(true);
-    try { await api('/api/pms/sync', { method: 'POST', headers }); await load(); } catch {}
+    setError('');
+    try {
+      await api('/api/pms/sync', { method: 'POST', headers });
+      await load();
+    } catch (e: any) {
+      setError(e?.message || 'Sync failed');
+    }
     setSyncing(false);
   };
 
@@ -76,6 +88,18 @@ export function PMSTab({ token }: { token: string }) {
     navigator.clipboard.writeText(url);
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
+
+  if (error && !data) return (
+    <div style={{ padding: 24 }}>
+      <h1>Property Management</h1>
+      <div style={{ background: '#fde7e5', border: '1px solid #f5c2c0', borderRadius: 10, padding: '16px 20px', color: '#a74840' }}>
+        <strong>Error loading PMS data:</strong> {error}
+        <div style={{ marginTop: 10 }}>
+          <button className="btn" onClick={load}>Retry</button>
+        </div>
+      </div>
+    </div>
+  );
 
   if (!data) return <p style={{ padding: 24, color: '#aaa' }}>Loading PMS data…</p>;
 
@@ -104,6 +128,12 @@ export function PMSTab({ token }: { token: string }) {
           <span style={{ color: '#888', fontSize: 12 }}>Last synced: {data.last_synced.replace('T', ' ').slice(0, 16)}</span>
         )}
       </div>
+
+      {error && (
+        <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, padding: '10px 16px', color: '#856404', marginBottom: 16, fontSize: 13 }}>
+          {error}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(5,1fr)', marginBottom: 20 }}>

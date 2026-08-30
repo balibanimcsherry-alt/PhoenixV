@@ -17,12 +17,14 @@ type Settings = {
   instant_booking: boolean; direct_discount_percent: number; cleaning_fee: number;
   tax_percent: number; security_mode: string; security_amount: number;
   cancellation_policy: string; promo_code: string; promo_percent: number;
+  airbnb_markup_percent: number; vrbo_markup_percent: number; booking_markup_percent: number;
 };
 const defaults: Settings = {
   instant_booking: true, direct_discount_percent: 10, cleaning_fee: 220,
   tax_percent: 15, security_mode: 'authorization', security_amount: 500,
   cancellation_policy: 'Full refund up to 30 days before arrival; 50% refund up to 14 days before arrival; non-refundable inside 14 days.',
   promo_code: 'RETURN10', promo_percent: 10,
+  airbnb_markup_percent: 17, vrbo_markup_percent: 20, booking_markup_percent: 25,
 };
 
 const COLORS = ['#0d5f6b', '#6baeb6', '#d9a14e', '#d98871', '#174b50', '#a8d5db', '#f6f2e9', '#28704e'];
@@ -518,6 +520,14 @@ export default function Admin() {
               <label>Promo code<input value={settings.promo_code} onChange={e => setSettings({ ...settings, promo_code: e.target.value })} /></label>
               <label>Promo %<input type="number" value={settings.promo_percent} onChange={e => setSettings({ ...settings, promo_percent: Number(e.target.value) })} /></label>
             </div>
+          </SectionCard>
+          <SectionCard title="OTA Platform Markups">
+            <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: 14 }}>
+              Markup applied on top of PriceLabs base price for each platform. Higher OTA prices incentivize direct bookings. View calculated prices in the Pricing tab → Platform Prices.
+            </p>
+            <label>Airbnb markup (%)<input type="number" min={0} value={settings.airbnb_markup_percent} onChange={e => setSettings({ ...settings, airbnb_markup_percent: Number(e.target.value) })} /></label>
+            <label>VRBO markup (%)<input type="number" min={0} value={settings.vrbo_markup_percent} onChange={e => setSettings({ ...settings, vrbo_markup_percent: Number(e.target.value) })} /></label>
+            <label>Booking.com markup (%)<input type="number" min={0} value={settings.booking_markup_percent} onChange={e => setSettings({ ...settings, booking_markup_percent: Number(e.target.value) })} /></label>
           </SectionCard>
           <SectionCard title="Cancellation policy">
             <textarea rows={5} value={settings.cancellation_policy} onChange={e => setSettings({ ...settings, cancellation_policy: e.target.value })} />
