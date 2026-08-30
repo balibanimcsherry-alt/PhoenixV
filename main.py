@@ -1186,7 +1186,10 @@ async def sync_pricing(_:None=Depends(require_admin),db:Session=Depends(get_db))
     payload={'listings':[{'id':settings.pricelabs_listing_id,'pms':settings.pricelabs_pms,'start_date':start_str,'end_date':end_str}]}
     async with httpx.AsyncClient(timeout=60) as c:
         r=await c.post('https://api.pricelabs.co/v1/listing_prices',headers=headers,json=payload)
-    if r.status_code>=400: raise HTTPException(502,'PriceLabs API error')
+    if r.status_code>=400:
+        try: detail=r.json()
+        except: detail=r.text[:400]
+        raise HTTPException(502,f'PriceLabs API error {r.status_code}: {detail}')
     results=r.json()
     daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
     now=datetime.utcnow(); count=0

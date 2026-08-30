@@ -38,11 +38,14 @@ export function PricingTab({ token }: { token: string }) {
 
   const syncNow = async () => {
     setSyncing(true);
+    setError('');
     try {
       await api<any>('/api/admin/pricing/sync', { method: 'POST', headers: h });
       await loadSyncStatus();
       load();
-    } catch { alert('Sync failed. Check PriceLabs credentials on Render.'); }
+    } catch (e: any) {
+      setError(e?.message || 'Sync failed');
+    }
     setSyncing(false);
   };
 
