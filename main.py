@@ -433,9 +433,10 @@ def customer_bookings(cid:int=Depends(_require_customer),db:Session=Depends(get_
 
 @app.post('/api/booking/checkout')
 async def checkout(payload:BookingIn,db:Session=Depends(get_db),authorization:str|None=Header(default=None)):
-    if not payload.email: raise HTTPException(400,'Email is required')
-    if not payload.phone: raise HTTPException(400,'Phone number is required')
-    if not payload.address: raise HTTPException(400,'Address is required')
+    if not payload.guest_name.strip(): raise HTTPException(400,'Full name is required')
+    if not payload.email.strip(): raise HTTPException(400,'Email is required')
+    if not payload.phone.strip(): raise HTTPException(400,'Phone number is required')
+    if not payload.address.strip(): raise HTTPException(400,'Address is required')
     q=await quote(payload.checkin,payload.checkout,payload.guests,db)
     if not q['available']: raise HTTPException(409,'Dates are not available')
     s=get_settings(db)
@@ -607,7 +608,7 @@ def admin_chat(_:None=Depends(require_admin),db:Session=Depends(get_db)):
 @app.get('/api/admin/bookings')
 def admin_bookings(_:None=Depends(require_admin),db:Session=Depends(get_db)):
     rows=db.query(BookingRequest).order_by(BookingRequest.created_at.desc()).all()
-    return [{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'customer_id':b.customer_id,'total':b.total,'status':b.status,'created_at':b.created_at.isoformat()} for b in rows]
+    return [{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name or '','email':b.email or '','phone':b.phone or '','address':b.address or '','customer_id':b.customer_id,'total':b.total,'status':b.status,'email_sent':b.email_sent,'created_at':b.created_at.isoformat()} for b in rows]
 
 @app.get('/api/admin/customers')
 def admin_customers(_:None=Depends(require_admin),db:Session=Depends(get_db)):

@@ -441,20 +441,24 @@ export default function Admin() {
                   const nights = Math.round((new Date(b.checkout).getTime() - new Date(b.checkin).getTime()) / 86400000);
                   const ref = `#CHV-${String(b.id).padStart(4,'0')}`;
                   const expanded = expandedBooking === b.id;
+                  const missing = !b.guest_name || !b.email || !b.phone || !b.address;
+                  const missingTag = (v: string) => v
+                    ? v
+                    : <span style={{background:'#fde7e5',color:'#a74840',fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:4}}>MISSING</span>;
                   return <React.Fragment key={b.id}>
-                    <tr style={{ cursor: 'pointer', background: expanded ? '#f0f9fa' : undefined }}
+                    <tr style={{ cursor: 'pointer', background: expanded ? '#f0f9fa' : missing ? '#fffaf8' : undefined }}
                         onClick={() => setExpandedBooking(expanded ? null : b.id)}>
-                      <td><strong>{ref}</strong></td>
-                      <td>{b.guest_name || <span style={{color:'#bbb'}}>—</span>}</td>
-                      <td style={{ fontSize: 12 }}>{b.phone || <span style={{color:'#bbb'}}>—</span>}</td>
-                      <td style={{ fontSize: 12 }}>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a> : <span style={{color:'#bbb'}}>—</span>}</td>
+                      <td><strong>{ref}</strong>{missing && <span style={{marginLeft:6,fontSize:9,background:'#fde7e5',color:'#a74840',padding:'1px 5px',borderRadius:4,fontWeight:700}}>!</span>}</td>
+                      <td>{b.guest_name || <span style={{color:'#c0392b',fontWeight:600,fontSize:12}}>Missing</span>}</td>
+                      <td style={{ fontSize: 12 }}>{b.phone || <span style={{color:'#c0392b',fontSize:12}}>Missing</span>}</td>
+                      <td style={{ fontSize: 12 }}>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}} onClick={e=>e.stopPropagation()}>{b.email}</a> : <span style={{color:'#c0392b',fontSize:12}}>Missing</span>}</td>
                       <td>{b.checkin}</td>
                       <td>{b.checkout}</td>
                       <td>{nights}</td>
                       <td>{b.guests}</td>
                       <td><strong>${b.total.toFixed(2)}</strong></td>
                       <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
-                      <td>{b.email_sent ? <span style={{color:'#28704e',fontWeight:700}}>✓</span> : <span style={{color:'#bbb'}}>—</span>}</td>
+                      <td>{b.email_sent ? <span style={{color:'#28704e',fontWeight:700}}>✓</span> : <span style={{color:'#bbb',fontSize:12}}>No</span>}</td>
                       <td style={{ fontSize: 11 }}>{b.created_at.slice(0,10)}</td>
                       <td onClick={e=>e.stopPropagation()}>
                         {!['cancelled'].includes(b.status) && (
@@ -469,20 +473,48 @@ export default function Admin() {
                     </tr>
                     {expanded && (
                       <tr style={{ background: '#f5fbfc' }}>
-                        <td colSpan={13} style={{ padding: '14px 20px' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, fontSize: 13 }}>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Full name</span><br/>{b.guest_name || '—'}</div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Email</span><br/>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b'}}>{b.email}</a> : '—'}</div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Phone</span><br/>{b.phone ? <a href={`tel:${b.phone}`} style={{color:'#0d5f6b'}}>{b.phone}</a> : '—'}</div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Address</span><br/>{b.address || '—'}</div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Booking ref</span><br/><strong>{ref}</strong></div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Guests</span><br/>{b.guests}</div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Nights</span><br/>{nights}</div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Total charged</span><br/><strong>${b.total.toFixed(2)}</strong></div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Status</span><br/><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Confirmation email</span><br/>{b.email_sent ? <span style={{color:'#28704e',fontWeight:700}}>Sent ✓</span> : <span style={{color:'#c0392b'}}>Not sent</span>}</div>
-                            <div><span style={{color:'#5a8a90',fontWeight:600}}>Booked on</span><br/>{b.created_at.slice(0,16).replace('T',' ')}</div>
-                            {b.customer_id && <div><span style={{color:'#5a8a90',fontWeight:600}}>Customer ID</span><br/>#{b.customer_id}</div>}
+                        <td colSpan={13} style={{ padding: '16px 20px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14, fontSize: 13 }}>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Full name</div>
+                              <div style={{fontWeight:600}}>{missingTag(b.guest_name)}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Email</div>
+                              <div>{b.email ? <a href={`mailto:${b.email}`} style={{color:'#0d5f6b',fontWeight:600}}>{b.email}</a> : missingTag('')}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Phone</div>
+                              <div>{b.phone ? <a href={`tel:${b.phone}`} style={{color:'#0d5f6b',fontWeight:600}}>{b.phone}</a> : missingTag('')}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0',gridColumn:'span 2'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Home address</div>
+                              <div style={{fontWeight:500}}>{missingTag(b.address)}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Booking ref</div>
+                              <div style={{fontWeight:700}}>{ref}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Stay</div>
+                              <div>{b.checkin} → {b.checkout} · <strong>{nights}n</strong> · {b.guests} guest{b.guests!==1?'s':''}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Total charged</div>
+                              <div style={{fontSize:18,fontWeight:800,color:'#0d5f6b'}}>${b.total.toFixed(2)}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Status</div>
+                              <span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span>
+                            </div>
+                            <div style={{padding:'10px 14px',background: b.email_sent ? '#edf7f0' : '#fff8f5',borderRadius:8,border:`1px solid ${b.email_sent?'#b3e0c0':'#f5c2c0'}`}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Confirmation email</div>
+                              <div style={{fontWeight:700,color: b.email_sent ? '#28704e' : '#a74840'}}>{b.email_sent ? '✓ Sent' : '✕ Not sent'}</div>
+                            </div>
+                            <div style={{padding:'10px 14px',background:'#fff',borderRadius:8,border:'1px solid #ddeef0'}}>
+                              <div style={{color:'#5a8a90',fontWeight:700,fontSize:11,textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Booked on</div>
+                              <div>{b.created_at.slice(0,16).replace('T',' ')}</div>
+                            </div>
                           </div>
                         </td>
                       </tr>
