@@ -9,7 +9,7 @@ from email.header import decode_header
 from datetime import datetime, date as date_t
 from config import settings
 
-_GMAIL_FOLDERS  = ['[Gmail]/All Mail', 'INBOX']
+_GMAIL_FOLDERS  = ['"[Gmail]/All Mail"', 'INBOX']
 _AIRBNB_SENDERS = ['automated@airbnb.com']
 _VRBO_SENDERS   = ['sender@messages.homeaway.com', 'reservations@vrbo.com']
 

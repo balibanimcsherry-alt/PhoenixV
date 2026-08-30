@@ -124,28 +124,42 @@ def _backfill_guest_info():
         print(f'Guest info backfill warning: {e}')
 
 def _apply_email_guest_info(db: Session) -> int:
-    """Fetch booking emails via IMAP and update matching IcalReservation records."""
+    """Fetch booking emails via IMAP and update matching IcalReservation records.
+
+    Matches by platform + checkin date. Airbnb iCal UIDs (1418fb94e984-xxx)
+    have no relationship to confirmation codes (HMXXXXXX) from email, so
+    UID-based matching never works.
+    """
     try:
         parsed = fetch_ota_guest_info()
     except Exception as e:
         print(f'Email reader error: {e}'); return 0
+
+    # Build lookup: (platform, checkin_iso) -> row
+    all_rows = db.query(IcalReservation).all()
+    by_date: dict[tuple[str, str], IcalReservation] = {
+        (r.platform, r.checkin): r for r in all_rows
+    }
+
     updated = 0
     for item in parsed:
-        code = item.get('confirmation_code', '').strip()
-        if not code:
+        checkin  = (item.get('checkin')  or '').strip()
+        platform = (item.get('platform') or '').strip()
+        if not checkin or not platform:
             continue
-        row = db.query(IcalReservation).filter(IcalReservation.uid.contains(code)).first()
+        row = by_date.get((platform, checkin))
         if not row:
             continue
         changed = False
-        if item.get('name') and not row.guest_name:
-            row.guest_name = item['name']; changed = True
-        if item.get('phone') and not row.guest_phone:
-            row.guest_phone = item['phone']; changed = True
-        if item.get('email') and not row.guest_email:
-            row.guest_email = item['email']; changed = True
+        name  = (item.get('name')  or '').strip()
+        phone = (item.get('phone') or '').strip()
+        email = (item.get('email') or '').strip()
+        if name  and not row.guest_name:  row.guest_name  = name;  changed = True
+        if phone and not row.guest_phone: row.guest_phone = phone; changed = True
+        if email and not row.guest_email: row.guest_email = email; changed = True
         if changed:
             updated += 1
+            print(f'  Email sync matched: {platform} {checkin} -> {name or phone or email}')
     if updated:
         db.commit()
     print(f'Email sync: updated {updated} reservations from inbox')
