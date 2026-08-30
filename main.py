@@ -85,11 +85,35 @@ def _migrate_db():
     except Exception as e:
         print(f'DB migration warning: {e}')
 
+def _backfill_guest_info():
+    """Re-parse raw_description for any rows where contact info is still empty."""
+    try:
+        with SessionLocal() as db:
+            rows = db.query(IcalReservation).all()
+            updated = 0
+            for row in rows:
+                info = _extract_guest_info(row.summary or '', row.raw_description or '')
+                changed = False
+                if info['name'] and not row.guest_name:
+                    row.guest_name = info['name']; changed = True
+                if info['phone'] and not row.guest_phone:
+                    row.guest_phone = info['phone']; changed = True
+                if info['email'] and not row.guest_email:
+                    row.guest_email = info['email']; changed = True
+                if changed:
+                    updated += 1
+            if updated:
+                db.commit()
+                print(f'Backfilled guest info for {updated} iCal reservations')
+    except Exception as e:
+        print(f'Guest info backfill warning: {e}')
+
 @app.on_event('startup')
 async def _startup():
     try: Base.metadata.create_all(bind=engine)
     except Exception as e: print(f'DB init warning: {e}')
     _migrate_db()
+    _backfill_guest_info()
     asyncio.create_task(_pricelabs_sync_loop())
     asyncio.create_task(_pms_sync_loop())
 app.add_middleware(CORSMiddleware,allow_origins=[settings.frontend_url,'https://www.orangebeachstay.com','https://coastal-haven.onrender.com','http://localhost:5173'],allow_credentials=True,allow_methods=['*'],allow_headers=['*','X-Session-ID'])

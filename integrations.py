@@ -102,22 +102,34 @@ def _parse_ical_events(ical_text: str) -> list[dict]:
 def _extract_guest_info(summary: str, description: str) -> dict:
     """Extract guest name, phone, email from iCal summary/description. Returns dict."""
     name = phone = email = ''
-    # Name from summary (e.g. "Reservation - John Doe" or "Airbnb (ABC123) - John Doe")
+    # Name from summary (e.g. "Reservation - John Doe" or "VRBO - John Doe")
     if ' - ' in summary:
         candidate = summary.rsplit(' - ', 1)[-1].strip()
         if candidate and 'not available' not in candidate.lower() and len(candidate) < 80:
             name = candidate
-    # Parse Airbnb/VRBO DESCRIPTION key: value lines
     if description:
         first = last = ''
-        for ln in description.split('\n'):
+        # Handle both literal \n and real newlines (iCal unfolding may vary)
+        for ln in description.replace('\\n', '\n').split('\n'):
             ln = ln.strip()
+            if ':' not in ln:
+                continue
             k, _, v = ln.partition(':')
             k = k.strip().upper(); v = v.strip()
-            if k == 'FIRST NAME':   first = v
-            elif k == 'LAST NAME':  last = v
-            elif k == 'PHONE':      phone = v
-            elif k == 'EMAIL':      email = v
+            if not v:
+                continue
+            if k == 'FIRST NAME':
+                first = v
+            elif k == 'LAST NAME':
+                last = v
+            # Airbnb: "Guest: John Doe"  VRBO: "Guest Name: John Doe"
+            elif k in ('GUEST', 'GUEST NAME', 'NAME') and not name:
+                name = v
+            # Airbnb: "Phone: …"  VRBO: "Telephone: …"
+            elif k in ('PHONE', 'TELEPHONE', 'TEL', 'MOBILE', 'CELL') and not phone:
+                phone = v
+            elif k == 'EMAIL' and not email:
+                email = v
         if first or last:
             name = f'{first} {last}'.strip()
     return {'name': name, 'phone': phone, 'email': email}
