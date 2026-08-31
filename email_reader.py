@@ -407,16 +407,18 @@ def fetch_all_guest_records() -> list[dict]:
             msgs = _fetch_from_sender(m, sender)
             if not msgs:
                 continue
+            before = len(records)
             for subj, plain, html, dt in msgs:
                 info = _parse_airbnb(plain, html, subj, dt)
                 if not info or info['confirmation_code'] in seen:
+                    print(f'    skip: {subj[:80]} -> {info["confirmation_code"] if info else "no parse"}')
                     continue
                 seen.add(info['confirmation_code'])
                 info['subject']        = subj
                 info['email_received'] = dt
                 records.append(info)
-            print(f'  Airbnb total: {len(records)}')
-            break
+                print(f'    parsed: {subj[:80]} -> {info["name"]} ci={info["checkin"]}')
+            print(f'  {sender}: +{len(records)-before} records')
 
         vrbo_before = len(records)
         for sender in _VRBO_SENDERS:

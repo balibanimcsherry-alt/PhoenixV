@@ -159,6 +159,7 @@ def _apply_email_guest_info(db: Session) -> int:
             except Exception:
                 pass
         if not row:
+            print(f'  Email sync NO MATCH: {platform} ci={checkin} name={item.get("name")} code={item.get("confirmation_code")}')
             continue
         changed = False
         name     = (item.get('name')     or '').strip()
