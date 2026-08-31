@@ -1016,8 +1016,11 @@ async def _do_pms_sync(db: Session) -> int:
             name, phone, email = info['name'], info['phone'], info['email']
             existing = db.query(IcalReservation).filter(IcalReservation.uid==scoped).first()
             if existing:
-                existing.checkin=ci; existing.checkout=co; existing.guest_name=name
-                existing.guest_phone=phone; existing.guest_email=email
+                existing.checkin=ci; existing.checkout=co
+                # Never overwrite non-empty guest contact data — iCal feeds are usually blank
+                if name  and not existing.guest_name:  existing.guest_name  = name
+                if phone and not existing.guest_phone: existing.guest_phone = phone
+                if email and not existing.guest_email: existing.guest_email = email
                 existing.summary=ev.get('summary',''); existing.raw_description=ev.get('raw_description','')
                 existing.synced_at=datetime.utcnow()
                 row = existing
