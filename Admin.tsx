@@ -7,6 +7,7 @@ import { PricingTab } from './PricingTab';
 import { PropertyTab } from './PropertyTab';
 import { ReviewsTab } from './ReviewsTab';
 import { MessagesTab } from './MessagesTab';
+import { ScreenshotTab } from './ScreenshotTab';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -529,7 +530,7 @@ export default function Admin() {
   const avgBooking = confirmedBookings.length ? totalRevenue / confirmedBookings.length : 0;
   const convRate = analytics?.unique_sessions ? ((analytics.funnel?.find((f: any) => f.step === 'Booking Confirmed')?.count || 0) / analytics.unique_sessions * 100).toFixed(1) : '0.0';
 
-  const tabs = ['overview', 'calendar', 'pms', 'tasks', 'financials', 'pricing', 'property', 'reviews', 'messages', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'marketing', 'settings'];
+  const tabs = ['overview', 'calendar', 'pms', 'tasks', 'financials', 'pricing', 'screenshot', 'property', 'reviews', 'messages', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'marketing', 'settings'];
 
   return (
     <main className="admin-page">
@@ -538,7 +539,7 @@ export default function Admin() {
         <h3>Owner Dashboard</h3>
         {tabs.map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.07)' }}>
-            {t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1)}
+            {t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t === 'screenshot' ? 'Screenshot Import' : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1)}
           </button>
         ))}
         <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); }} style={{ marginTop: 'auto', background: 'rgba(200,60,60,.55)', borderRadius: 8, fontWeight: 600 }}>
@@ -636,6 +637,9 @@ export default function Admin() {
 
         {/* ── FINANCIALS ── */}
         {tab === 'financials' && <FinancialsTab token={token} />}
+
+        {/* ── SCREENSHOT ── */}
+        {tab === 'screenshot' && <ScreenshotTab token={token} />}
 
         {/* ── PRICING ── */}
         {tab === 'pricing' && <PricingTab token={token} />}

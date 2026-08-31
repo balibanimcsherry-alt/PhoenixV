@@ -185,6 +185,25 @@ def _dates_from_body(text: str, email_date: str = '') -> tuple[str, str]:
     return '', checkout
 
 
+def _payout_from_body(text: str) -> float:
+    """Extract host payout amount from Airbnb email body. Returns 0 if not found."""
+    for pat in [
+        r'Host\s+payout[:\s]+\$?([\d,]+(?:\.\d{2})?)',
+        r'You(?:\'ll|\'d|\s+will)?\s+earn[:\s]+\$?([\d,]+(?:\.\d{2})?)',
+        r'Your\s+payout[:\s]+\$?([\d,]+(?:\.\d{2})?)',
+        r'Total\s+payout[:\s]+\$?([\d,]+(?:\.\d{2})?)',
+        r'Payout[:\s]+\$?([\d,]+(?:\.\d{2})?)',
+        r'(?:earn|payout)[^\n]*\n[^\n]*\$\s*([\d,]+(?:\.\d{2})?)',
+    ]:
+        m = re.search(pat, text, re.I)
+        if m:
+            try:
+                return float(m.group(1).replace(',', ''))
+            except Exception:
+                pass
+    return 0.0
+
+
 def _name_from_subject(subject: str) -> str:
     """Extract guest name from 'Reservation confirmed - Name arrives Month D'."""
     m = re.search(r'Reservation confirmed\s*[-–—]\s*(.+?)\s+arrives\s+[A-Za-z]+\s+\d', subject)
@@ -262,6 +281,8 @@ def _parse_airbnb(plain: str, html: str, subject: str, email_date: str = "") -> 
     if pm:
         phone = re.sub(r'[^\d\+]', '', pm.group(1)).strip()
 
+    payout = _payout_from_body(all_text)
+
     return {
         'platform': 'airbnb',
         'confirmation_code': code,
@@ -270,6 +291,7 @@ def _parse_airbnb(plain: str, html: str, subject: str, email_date: str = "") -> 
         'email': '',
         'checkin':  checkin,
         'checkout': checkout,
+        'payout_amount': payout,
     }
 
 

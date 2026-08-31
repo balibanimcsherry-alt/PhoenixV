@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     smtp_password:str=''
     from_email:str=''
     from_name:str='Coastal Haven'
-    openai_api_key:str=''
+    openai_api_key:str=''; anthropic_api_key:str=''
     aviationstack_api_key:str=''
     airbnb_ical_url:str=''
     vrbo_ical_url:str=''

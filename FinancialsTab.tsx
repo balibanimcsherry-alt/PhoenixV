@@ -53,7 +53,7 @@ export function FinancialsTab({ token }:{ token:string }) {
 
       {fin && <>
         <div className="kpi-grid">
-          {kpi('Revenue', `$${fin.revenue.toLocaleString('en-US',{maximumFractionDigits:0})}`, 'direct bookings')}
+          {kpi('Total Revenue', `$${fin.revenue.toLocaleString('en-US',{maximumFractionDigits:0})}`, `OTA $${(fin.ota_rev||0).toLocaleString('en-US',{maximumFractionDigits:0})} + Direct $${(fin.direct_rev||0).toLocaleString('en-US',{maximumFractionDigits:0})}`)}
           {kpi('Expenses', `$${fin.expenses.toLocaleString('en-US',{maximumFractionDigits:0})}`, 'tracked costs')}
           {kpi('Net Profit', `$${fin.net.toLocaleString('en-US',{maximumFractionDigits:0})}`, fin.net>=0?'▲ profitable':'▼ loss')}
           {kpi('Occupancy', `${fin.occupancy}%`, `${fin.total_nights} nights booked`)}

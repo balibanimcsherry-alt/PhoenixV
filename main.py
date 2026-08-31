@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone, date
-from fastapi import FastAPI, Depends, HTTPException, Header, Query, Request, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, Header, Query, Request, BackgroundTasks, UploadFile, File as FastAPIFile
 from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -88,9 +88,10 @@ def _migrate_db():
             # ical_reservations guest contact fields
             ical_existing = {c['name'] for c in inspector.get_columns('ical_reservations')} if 'ical_reservations' in inspector.get_table_names() else set()
             ical_cols = [
-                ('guest_phone', "VARCHAR(60) DEFAULT ''"),
-                ('guest_email', "VARCHAR(200) DEFAULT ''"),
-                ('email_sent',  'BOOLEAN DEFAULT FALSE'),
+                ('guest_phone',    "VARCHAR(60) DEFAULT ''"),
+                ('guest_email',    "VARCHAR(200) DEFAULT ''"),
+                ('email_sent',     'BOOLEAN DEFAULT FALSE'),
+                ('payout_amount',  'FLOAT DEFAULT 0'),
             ]
             for col, typedef in ical_cols:
                 if col not in ical_existing:
@@ -166,13 +167,15 @@ def _apply_email_guest_info(db: Session) -> int:
         phone    = (item.get('phone')    or '').strip()
         email    = (item.get('email')    or '').strip()
         checkout = (item.get('checkout') or '').strip()
+        payout = float(item.get('payout_amount') or 0)
         if name     and not row.guest_name:  row.guest_name  = name;     changed = True
         if phone    and not row.guest_phone: row.guest_phone = phone;    changed = True
         if email    and not row.guest_email: row.guest_email = email;    changed = True
         if checkout and not row.checkout:    row.checkout    = checkout; changed = True
+        if payout   and not row.payout_amount: row.payout_amount = payout; changed = True
         if changed:
             updated += 1
-            print(f'  Email sync matched: {platform} {checkin} -> {name or phone or email}')
+            print(f'  Email sync matched: {platform} {checkin} -> {name or phone or email} payout=${payout}')
     if updated:
         db.commit()
     print(f'Email sync: updated {updated} reservations from inbox')
@@ -1177,6 +1180,91 @@ async def export_email_guests(_:None=Depends(require_admin)):
     items = await asyncio.to_thread(fetch_all_guest_records)
     return items
 
+# ── Screenshot upload ─────────────────────────────────────────────────────────
+@app.post('/api/admin/screenshot-upload')
+async def admin_screenshot_upload(file:UploadFile=FastAPIFile(...),_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    import base64, json as _json
+    if not settings.anthropic_api_key:
+        raise HTTPException(400,'ANTHROPIC_API_KEY not configured on Render')
+    data = await file.read()
+    b64  = base64.standard_b64encode(data).decode()
+    mime = file.content_type or 'image/png'
+    try:
+        import anthropic as _ant
+        client = _ant.Anthropic(api_key=settings.anthropic_api_key)
+        resp = client.messages.create(
+            model='claude-haiku-4-5-20251001',
+            max_tokens=512,
+            messages=[{
+                'role':'user',
+                'content':[
+                    {'type':'image','source':{'type':'base64','media_type':mime,'data':b64}},
+                    {'type':'text','text':(
+                        'Extract booking/payout data from this screenshot. '
+                        'Return ONLY a JSON object with these keys (null if not visible): '
+                        '{"platform":"airbnb|vrbo|booking.com|direct","guest_name":"string",'
+                        '"checkin":"YYYY-MM-DD","checkout":"YYYY-MM-DD",'
+                        '"payout_amount":number,"confirmation_code":"string"}'
+                    )},
+                ],
+            }],
+        )
+        raw = resp.content[0].text.strip()
+        # Strip markdown code fences if present
+        raw = re.sub(r'^```[a-z]*\n?', '', raw, flags=re.I)
+        raw = re.sub(r'\n?```$', '', raw, flags=re.I)
+        extracted = _json.loads(raw)
+    except Exception as e:
+        raise HTTPException(500, f'Vision extraction failed: {e}')
+
+    platform = (extracted.get('platform') or '').strip().lower()
+    checkin  = (extracted.get('checkin')  or '').strip()
+    checkout = (extracted.get('checkout') or '').strip()
+    name     = (extracted.get('guest_name') or '').strip()
+    payout   = float(extracted.get('payout_amount') or 0)
+    code     = (extracted.get('confirmation_code') or '').strip()
+
+    updated_row: IcalReservation | None = None
+    if platform and checkin:
+        all_rows = db.query(IcalReservation).all()
+        by_date = {(r.platform, r.checkin): r for r in all_rows}
+        row = by_date.get((platform, checkin))
+        if not row:
+            # Try year shifts
+            try:
+                ci_d = date.fromisoformat(checkin)
+                for delta in (1, 2):
+                    alt = ci_d.replace(year=ci_d.year + delta).isoformat()
+                    row = by_date.get((platform, alt))
+                    if row:
+                        break
+            except Exception:
+                pass
+        if row:
+            changed = False
+            if name   and not row.guest_name:    row.guest_name    = name;    changed = True
+            if checkout and not row.checkout:     row.checkout      = checkout; changed = True
+            if payout  and not row.payout_amount: row.payout_amount = payout;  changed = True
+            if changed: db.commit()
+            updated_row = row
+        else:
+            # Create new IcalReservation from screenshot data
+            uid = code or f'SCREENSHOT-{platform}-{checkin}'
+            existing = db.query(IcalReservation).filter(IcalReservation.uid==uid).first()
+            if not existing:
+                new_res = IcalReservation(
+                    uid=uid, platform=platform, checkin=checkin, checkout=checkout or '',
+                    guest_name=name, payout_amount=payout, summary=f'Screenshot import',
+                )
+                db.add(new_res); db.commit()
+                updated_row = new_res
+
+    return {
+        'extracted': extracted,
+        'matched': updated_row is not None,
+        'reservation_id': updated_row.id if updated_row else None,
+    }
+
 # ── Caretaker auth ───────────────────────────────────────────────────────────
 class _CaretakerLogin(BaseModel): username:str; password:str
 
@@ -1361,10 +1449,12 @@ def admin_financials(_:None=Depends(require_admin),year:int=0,db:Session=Depends
         m=int(b.checkin[5:7])-1; n=nights(b.checkin,b.checkout)
         monthly[m]['revenue']+=b.total; monthly[m]['bookings']+=1; monthly[m]['direct_nights']+=n
     for r in ota_res:
-        m=int(r.checkin[5:7])-1; monthly[m]['ota_nights']+=nights(r.checkin,r.checkout)
+        m=int(r.checkin[5:7])-1; monthly[m]['ota_nights']+=nights(r.checkin,r.checkout); monthly[m]['revenue']+=r.payout_amount or 0
     for e in expenses:
         m=int(e.date[5:7])-1; monthly[m]['expenses']+=e.amount
-    total_rev=sum(b.total for b in bookings)
+    direct_rev=sum(b.total for b in bookings)
+    ota_rev=sum(r.payout_amount or 0 for r in ota_res)
+    total_rev=direct_rev+ota_rev
     direct_nights=sum(nights(b.checkin,b.checkout) for b in bookings)
     ota_nights=sum(nights(r.checkin,r.checkout) for r in ota_res)
     total_nights=direct_nights+ota_nights
@@ -1372,7 +1462,7 @@ def admin_financials(_:None=Depends(require_admin),year:int=0,db:Session=Depends
     avail=366 if _cal.isleap(year) else 365
     exp_by_cat:dict={}
     for e in expenses: exp_by_cat[e.category]=exp_by_cat.get(e.category,0)+e.amount
-    return {'year':year,'revenue':total_rev,'expenses':total_exp,'net':total_rev-total_exp,'bookings':len(bookings),'direct_nights':direct_nights,'ota_nights':ota_nights,'total_nights':total_nights,'occupancy':round(total_nights/avail*100,1),'adr':round(total_rev/direct_nights,2) if direct_nights else 0,'revpan':round(total_rev/avail,2),'monthly':monthly,'expenses_by_cat':exp_by_cat}
+    return {'year':year,'revenue':total_rev,'direct_rev':direct_rev,'ota_rev':ota_rev,'expenses':total_exp,'net':total_rev-total_exp,'bookings':len(bookings),'direct_nights':direct_nights,'ota_nights':ota_nights,'total_nights':total_nights,'occupancy':round(total_nights/avail*100,1),'adr':round(total_rev/total_nights,2) if total_nights else 0,'revpan':round(total_rev/avail,2),'monthly':monthly,'expenses_by_cat':exp_by_cat}
 
 # ── Pricing (PriceLabs) ─────────────────────────────────────────────────────
 def _markup_meta(db: Session) -> dict:
