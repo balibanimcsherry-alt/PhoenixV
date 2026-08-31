@@ -148,6 +148,17 @@ def _apply_email_guest_info(db: Session) -> int:
             continue
         row = by_date.get((platform, checkin))
         if not row:
+            # Email received in year Y for a stay in year Y+1 or Y+2 — try shifted years
+            try:
+                ci_d = date.fromisoformat(checkin)
+                for delta in (1, 2):
+                    alt = ci_d.replace(year=ci_d.year + delta).isoformat()
+                    row = by_date.get((platform, alt))
+                    if row:
+                        break
+            except Exception:
+                pass
+        if not row:
             continue
         changed = False
         name     = (item.get('name')     or '').strip()
