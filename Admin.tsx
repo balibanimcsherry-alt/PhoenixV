@@ -639,7 +639,7 @@ export default function Admin() {
         {tab === 'financials' && <FinancialsTab token={token} />}
 
         {/* ── SCREENSHOT ── */}
-        {tab === 'screenshot' && <ScreenshotTab token={token} />}
+        {tab === 'screenshot' && <ScreenshotTab token={token} onSaved={load} />}
 
         {/* ── PRICING ── */}
         {tab === 'pricing' && <PricingTab token={token} />}

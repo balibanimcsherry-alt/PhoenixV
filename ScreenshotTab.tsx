@@ -30,7 +30,7 @@ const STATUS_LABEL: Record<string, string> = {
   skipped:   '✕ Skipped',
 };
 
-export function ScreenshotTab({ token }: { token: string }) {
+export function ScreenshotTab({ token, onSaved }: { token: string; onSaved?: () => void }) {
   const [mode, setMode]         = useState<'file'|'text'>('file');
   const [file, setFile]         = useState<File | null>(null);
   const [preview, setPreview]   = useState('');
@@ -68,7 +68,9 @@ export function ScreenshotTab({ token }: { token: string }) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
         throw new Error(err.detail || res.statusText);
       }
-      setResult(await res.json());
+      const data: ImportResult = await res.json();
+      setResult(data);
+      if (data.saved > 0) onSaved?.();
     } catch (e: any) {
       setError(e.message || 'Import failed');
     } finally {
