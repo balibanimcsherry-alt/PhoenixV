@@ -70,7 +70,7 @@ export function ScreenshotTab({ token, onSaved }: { token: string; onSaved?: () 
       }
       const data: ImportResult = await res.json();
       setResult(data);
-      if (data.saved > 0) onSaved?.();
+      onSaved?.();
     } catch (e: any) {
       setError(e.message || 'Import failed');
     } finally {

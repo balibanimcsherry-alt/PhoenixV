@@ -829,63 +829,87 @@ export default function Admin() {
         </>}
 
         {/* ── CUSTOMERS ── */}
-        {tab === 'customers' && <>
-          <h1>Customers</h1>
-          <div className="kpi-grid">
-            {kpi('Registered accounts', customers.length)}
-            {kpi('Direct bookings', bookings.filter(b => b.guest_name || b.email).length)}
-            {kpi('Unique visitors', analytics?.unique_sessions ?? '–', `last ${analyticsDays} days`)}
-            {kpi('Top country', analytics?.countries?.[0]?.name || '–')}
-          </div>
+        {tab === 'customers' && (() => {
+          const otaGuests  = bookings.filter(b => b.source !== 'direct' && (b.guest_name || b.email || b.phone));
+          const directGuests = bookings.filter(b => b.source === 'direct' && (b.guest_name || b.email || b.phone));
+          return <>
+            <h1>Guests</h1>
+            <div className="kpi-grid">
+              {kpi('OTA Guests', otaGuests.length, 'Airbnb / VRBO / imported')}
+              {kpi('Direct Guests', directGuests.length, 'booked via website')}
+              {kpi('Registered accounts', customers.length, 'have login')}
+              {kpi('Unique visitors', analytics?.unique_sessions ?? '–', `last ${analyticsDays} days`)}
+            </div>
 
-          {/* Registered accounts */}
-          <SectionCard title="Registered accounts">
-            <table className="admin-table">
-              <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Joined</th></tr></thead>
-              <tbody>
-                {customers.length === 0 && (
-                  <tr><td colSpan={5} style={{ color: '#aaa', textAlign: 'center' }}>No registered accounts yet.</td></tr>
-                )}
-                {customers.map(c => (
-                  <tr key={c.id}>
-                    <td><strong>{c.name || '—'}</strong></td>
-                    <td><a href={`mailto:${c.email}`} style={{ color: 'var(--teal)' }}>{c.email}</a></td>
-                    <td>{c.phone || '—'}</td>
-                    <td style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.address || '—'}</td>
-                    <td style={{ fontSize: 11 }}>{c.created_at.slice(0, 10)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </SectionCard>
+            {/* OTA / imported guests */}
+            <SectionCard title="OTA & Imported Guests (Airbnb / VRBO)">
+              <table className="admin-table">
+                <thead><tr><th>Platform</th><th>Name</th><th>Email</th><th>Phone</th><th>Check-in</th><th>Check-out</th><th>Payout</th></tr></thead>
+                <tbody>
+                  {otaGuests.length === 0 && (
+                    <tr><td colSpan={7} style={{ color: '#aaa', textAlign: 'center' }}>No OTA guests yet — import from the Import Data tab.</td></tr>
+                  )}
+                  {otaGuests.map(b => (
+                    <tr key={b.id}>
+                      <td><SourceBadge source={b.source} /></td>
+                      <td><strong>{b.guest_name || '—'}</strong></td>
+                      <td style={{ fontSize: 12 }}>{b.email ? <a href={`mailto:${b.email}`} style={{ color: 'var(--teal)' }}>{b.email}</a> : '—'}</td>
+                      <td style={{ fontSize: 12 }}>{b.phone || '—'}</td>
+                      <td style={{ fontSize: 12 }}>{b.checkin}</td>
+                      <td style={{ fontSize: 12 }}>{b.checkout || '—'}</td>
+                      <td style={{ fontSize: 12 }}>{b.total > 0 ? `$${b.total.toFixed(0)}` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SectionCard>
 
-          {/* All bookings with full contact */}
-          <SectionCard title="All direct bookings — full guest details">
-            <table className="admin-table">
-              <thead><tr><th>Ref</th><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Total</th><th>Status</th><th>Booked</th></tr></thead>
-              <tbody>
-                {bookings.filter(b => b.guest_name || b.email || b.phone).map(b => (
-                  <tr key={b.id}>
-                    <td style={{ fontSize: 12 }}>#CHV-{String(b.id).padStart(4,'0')}</td>
-                    <td><strong>{b.guest_name || '—'}</strong></td>
-                    <td style={{ fontSize: 12 }}><a href={`mailto:${b.email}`} style={{ color: 'var(--teal)' }}>{b.email || '—'}</a></td>
-                    <td style={{ fontSize: 12 }}>{b.phone || '—'}</td>
-                    <td style={{ fontSize: 11, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.address || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{b.checkin}</td>
-                    <td style={{ fontSize: 12 }}>{b.checkout}</td>
-                    <td>{b.guests}</td>
-                    <td><strong>${b.total.toFixed(0)}</strong></td>
-                    <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
-                    <td style={{ fontSize: 11 }}>{b.created_at.slice(0,10)}</td>
-                  </tr>
-                ))}
-                {bookings.filter(b => b.guest_name || b.email || b.phone).length === 0 && (
-                  <tr><td colSpan={11} style={{ color: '#aaa', textAlign: 'center' }}>No direct bookings with guest details yet.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </SectionCard>
-        </>}
+            {/* Direct booking guests */}
+            <SectionCard title="Direct Booking Guests">
+              <table className="admin-table">
+                <thead><tr><th>Ref</th><th>Name</th><th>Email</th><th>Phone</th><th>Check-in</th><th>Check-out</th><th>Total</th><th>Status</th></tr></thead>
+                <tbody>
+                  {directGuests.length === 0 && (
+                    <tr><td colSpan={8} style={{ color: '#aaa', textAlign: 'center' }}>No direct bookings with guest details yet.</td></tr>
+                  )}
+                  {directGuests.map(b => (
+                    <tr key={b.id}>
+                      <td style={{ fontSize: 12 }}>#CHV-{String(b.db_id).padStart(4,'0')}</td>
+                      <td><strong>{b.guest_name || '—'}</strong></td>
+                      <td style={{ fontSize: 12 }}>{b.email ? <a href={`mailto:${b.email}`} style={{ color: 'var(--teal)' }}>{b.email}</a> : '—'}</td>
+                      <td style={{ fontSize: 12 }}>{b.phone || '—'}</td>
+                      <td style={{ fontSize: 12 }}>{b.checkin}</td>
+                      <td style={{ fontSize: 12 }}>{b.checkout}</td>
+                      <td><strong>${b.total.toFixed(0)}</strong></td>
+                      <td><span className={`status-badge status-${b.status.replace(/_/g,'-')}`}>{b.status.replace(/_/g,' ')}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SectionCard>
+
+            {/* Registered accounts */}
+            <SectionCard title="Registered Accounts (direct login)">
+              <table className="admin-table">
+                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Joined</th></tr></thead>
+                <tbody>
+                  {customers.length === 0 && (
+                    <tr><td colSpan={5} style={{ color: '#aaa', textAlign: 'center' }}>No registered accounts yet.</td></tr>
+                  )}
+                  {customers.map(c => (
+                    <tr key={c.id}>
+                      <td><strong>{c.name || '—'}</strong></td>
+                      <td><a href={`mailto:${c.email}`} style={{ color: 'var(--teal)' }}>{c.email}</a></td>
+                      <td>{c.phone || '—'}</td>
+                      <td style={{ fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.address || '—'}</td>
+                      <td style={{ fontSize: 11 }}>{c.created_at.slice(0, 10)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SectionCard>
+          </>;
+        })()}
 
         {/* ── CHAT ── */}
         {tab === 'chat' && <>
