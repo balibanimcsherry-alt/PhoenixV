@@ -161,21 +161,10 @@ function BookingsTab({ bookings, headers, load }: {
           ))}
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          {fetchMsg && <span style={{fontSize:12,color:'#28704e',fontWeight:600}}>{fetchMsg}</span>}
-          <button
-            disabled={fetchingEmails}
-            onClick={async()=>{
-              setFetchingEmails(true); setFetchMsg('');
-              try {
-                const r = await api<{updated:number}>('/api/admin/fetch-emails',{method:'POST',headers:headers()});
-                setFetchMsg(`✓ ${r.updated} reservation${r.updated!==1?'s':''} updated from inbox`);
-                if(r.updated>0) load();
-              } catch { setFetchMsg('Could not read inbox — check SMTP credentials'); }
-              finally { setFetchingEmails(false); }
-            }}
-            style={{padding:'5px 14px',borderRadius:8,border:'1px solid #0d5f6b',background:'#f0fafb',color:'#0d5f6b',fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>
-            {fetchingEmails ? 'Checking inbox…' : '📥 Fetch from email'}
-          </button>
+          {fetchingEmails
+            ? <span style={{fontSize:12,color:'#0d5f6b',fontStyle:'italic'}}>📥 Syncing inbox…</span>
+            : fetchMsg && <span style={{fontSize:12,color:'#28704e',fontWeight:600}}>{fetchMsg}</span>
+          }
           <button
             onClick={async()=>{
               setFetchMsg('Exporting…');
@@ -496,6 +485,16 @@ export default function Admin() {
       ]);
       setSettings(s); setChats(c); setBookings(b); setAnalytics(a); setCustomers(cu); setEmailStats(es);
     } catch { }
+    // Sync guest details from inbox in the background, then refresh bookings
+    setFetchingEmails(true);
+    api('/api/admin/fetch-emails', { method: 'POST', headers: headers(t) })
+      .then((r: any) => {
+        if (r.updated > 0) setFetchMsg(`✓ ${r.updated} guest${r.updated !== 1 ? 's' : ''} synced from inbox`);
+        return api<any[]>('/api/admin/bookings', { headers: headers(t) });
+      })
+      .then(setBookings)
+      .catch(() => {})
+      .finally(() => setFetchingEmails(false));
   };
 
   useEffect(() => { if (token) load(); }, [token]);
