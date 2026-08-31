@@ -93,17 +93,16 @@ function SourceBadge({source}: {source: string}) {
   return <span style={{display:'inline-block',padding:'2px 8px',borderRadius:12,fontSize:10,fontWeight:700,color:'#fff',background:SOURCE_COLORS[source]||'#888',letterSpacing:.5}}>{SOURCE_LABELS[source]||source}</span>;
 }
 
-function BookingsTab({ bookings, headers, load }: {
+function BookingsTab({ bookings, headers, load, fetchingEmails, fetchMsg, setFetchMsg }: {
   bookings: any[];
   headers: () => Record<string,string>; load: () => void;
+  fetchingEmails: boolean; fetchMsg: string; setFetchMsg: (s: string) => void;
 }) {
   const [expanded, setExpanded] = React.useState<string|null>(null);
   const [srcFilter, setSrcFilter] = React.useState<string>('all');
   const [editingId, setEditingId] = React.useState<string|null>(null);
   const [editForm, setEditForm] = React.useState({guest_name:'',guest_phone:'',guest_email:''});
   const [editSaving, setEditSaving] = React.useState(false);
-  const [fetchingEmails, setFetchingEmails] = React.useState(false);
-  const [fetchMsg, setFetchMsg] = React.useState('');
 
   const direct   = bookings.filter(b => b.source === 'direct');
   const ota      = bookings.filter(b => b.source !== 'direct');
@@ -470,6 +469,8 @@ export default function Admin() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsDays, setAnalyticsDays] = useState(30);
   const [emailStats, setEmailStats] = useState<any>(null);
+  const [fetchingEmails, setFetchingEmails] = useState(false);
+  const [fetchMsg, setFetchMsg] = useState('');
 
   const headers = (t = token) => ({ Authorization: `Bearer ${t}` });
 
@@ -771,7 +772,7 @@ export default function Admin() {
         </>}
 
         {/* ── BOOKINGS ── */}
-        {tab === 'bookings' && <BookingsTab bookings={bookings} headers={headers} load={load}/>}
+        {tab === 'bookings' && <BookingsTab bookings={bookings} headers={headers} load={load} fetchingEmails={fetchingEmails} fetchMsg={fetchMsg} setFetchMsg={setFetchMsg}/>}
 
 
         {/* ── PAYMENTS ── */}
