@@ -240,15 +240,17 @@ def _parse_airbnb(plain: str, html: str, subject: str, email_date: str = "") -> 
     # Name: subject is most reliable for confirmed reservations
     name = _name_from_subject(subject) or _name_from_body(plain, html)
 
-    # Dates: subject first, then body fills in missing checkout
+    # Dates: body first when it has an explicit year in a full range (most reliable),
+    # otherwise fall back to subject which only infers year from email_date.
     checkin, checkout = _dates_from_subject(subject, email_date)
-    if not checkout:
-        _, checkout = _dates_from_body(all_text, email_date)
-    # If body has a full range and subject had no checkin, use body's checkin
-    if not checkin:
-        checkin, co2 = _dates_from_body(all_text, email_date)
-        if not checkout:
-            checkout = co2
+    body_ci, body_co = _dates_from_body(all_text, email_date)
+    if body_ci and body_co:
+        # Body has full explicit range — trust it over subject's inferred year
+        checkin, checkout = body_ci, body_co
+    elif body_co and not checkout:
+        checkout = body_co
+    elif body_ci and not checkin:
+        checkin = body_ci
 
     # Phone — Airbnb sometimes includes it in newer confirmation emails
     phone = ''
