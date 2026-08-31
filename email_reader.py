@@ -10,7 +10,7 @@ from datetime import datetime, date as date_t
 from config import settings
 
 _GMAIL_FOLDERS  = ['"[Gmail]/All Mail"', 'INBOX']
-_AIRBNB_SENDERS = ['automated@airbnb.com']
+_AIRBNB_SENDERS = ['automated@airbnb.com', 'express@airbnb.com']
 _VRBO_SENDERS   = ['sender@messages.homeaway.com', 'reservations@vrbo.com']
 
 _MONTH_MAP = {
@@ -234,10 +234,7 @@ def _parse_airbnb(plain: str, html: str, subject: str, email_date: str = "") -> 
                 break
         if code:
             break
-    if not code:
-        return None
-
-    # Name: subject is most reliable for confirmed reservations
+    # Name: subject first for confirmed emails, body for express@airbnb.com style
     name = _name_from_subject(subject) or _name_from_body(plain, html)
 
     # Dates: body first when it has an explicit year in a full range (most reliable),
@@ -251,6 +248,13 @@ def _parse_airbnb(plain: str, html: str, subject: str, email_date: str = "") -> 
         checkout = body_co
     elif body_ci and not checkin:
         checkin = body_ci
+
+    # express@airbnb.com emails may not include the HM code — use date as dedup key
+    if not code:
+        if checkin:
+            code = f'EXPRESS-{checkin}'
+        else:
+            return None
 
     # Phone — Airbnb sometimes includes it in newer confirmation emails
     phone = ''
