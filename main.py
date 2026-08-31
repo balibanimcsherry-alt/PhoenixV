@@ -1190,31 +1190,33 @@ _IMPORT_PROMPT = (
     'Return [] if nothing found. No explanation, just the JSON array.'
 )
 
+def _openai_client():
+    from openai import OpenAI
+    return OpenAI(api_key=settings.openai_api_key)
+
 def _call_claude_text(text_content: str) -> list[dict]:
-    import json as _json, anthropic as _ant
-    client = _ant.Anthropic(api_key=settings.anthropic_api_key)
-    resp = client.messages.create(
-        model='claude-haiku-4-5-20251001', max_tokens=2048,
+    import json as _json
+    resp = _openai_client().chat.completions.create(
+        model='gpt-4o-mini', max_tokens=2048,
         messages=[{'role':'user','content': _IMPORT_PROMPT + '\n\n' + text_content[:12000]}],
     )
-    raw = resp.content[0].text.strip()
+    raw = (resp.choices[0].message.content or '').strip()
     raw = re.sub(r'^```[a-z]*\n?', '', raw, flags=re.I)
     raw = re.sub(r'\n?```$', '', raw, flags=re.I)
     result = _json.loads(raw)
     return result if isinstance(result, list) else [result]
 
 def _call_claude_vision(data: bytes, mime: str) -> list[dict]:
-    import base64, json as _json, anthropic as _ant
+    import base64, json as _json
     b64 = base64.standard_b64encode(data).decode()
-    client = _ant.Anthropic(api_key=settings.anthropic_api_key)
-    resp = client.messages.create(
-        model='claude-haiku-4-5-20251001', max_tokens=2048,
+    resp = _openai_client().chat.completions.create(
+        model='gpt-4o-mini', max_tokens=2048,
         messages=[{'role':'user','content':[
-            {'type':'image','source':{'type':'base64','media_type':mime,'data':b64}},
+            {'type':'image_url','image_url':{'url':f'data:{mime};base64,{b64}'}},
             {'type':'text','text': _IMPORT_PROMPT},
         ]}],
     )
-    raw = resp.content[0].text.strip()
+    raw = (resp.choices[0].message.content or '').strip()
     raw = re.sub(r'^```[a-z]*\n?', '', raw, flags=re.I)
     raw = re.sub(r'\n?```$', '', raw, flags=re.I)
     result = _json.loads(raw)
@@ -1285,8 +1287,8 @@ async def admin_import_data(
     _: None = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    if not settings.anthropic_api_key:
-        raise HTTPException(400, 'ANTHROPIC_API_KEY not configured on Render')
+    if not settings.openai_api_key:
+        raise HTTPException(400, 'OPENAI_API_KEY not configured on Render')
     if not file and not raw_text.strip():
         raise HTTPException(400, 'Provide a file or paste text')
     try:
