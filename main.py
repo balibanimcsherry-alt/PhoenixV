@@ -1143,13 +1143,14 @@ def pms_notes(res_id:int,payload:_NotesIn,_:None=Depends(require_admin),db:Sessi
     return {'ok':True}
 
 class _GuestInfoIn(BaseModel):
-    guest_name:str=''; guest_phone:str=''; guest_email:str=''
+    guest_name:str=''; guest_phone:str=''; guest_email:str=''; platform:str=''
 
 @app.patch('/api/admin/ical/{res_id}/guest')
 def update_ical_guest(res_id:int,payload:_GuestInfoIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
     r=db.get(IcalReservation,res_id)
     if not r: raise HTTPException(404,'Reservation not found')
     r.guest_name=payload.guest_name; r.guest_phone=payload.guest_phone; r.guest_email=payload.guest_email
+    if payload.platform: r.platform=payload.platform
     db.commit()
     return {'ok':True}
 
@@ -1195,11 +1196,12 @@ def _openai_client():
     from openai import OpenAI
     return OpenAI(api_key=settings.openai_api_key)
 
-def _call_claude_text(text_content: str) -> list[dict]:
+def _call_claude_text(text_content: str, extra_prompt: str = '') -> list[dict]:
     import json as _json
+    prompt = _IMPORT_PROMPT + extra_prompt + '\n\n' + text_content[:12000]
     resp = _openai_client().chat.completions.create(
         model='gpt-4o-mini', max_tokens=2048,
-        messages=[{'role':'user','content': _IMPORT_PROMPT + '\n\n' + text_content[:12000]}],
+        messages=[{'role':'user','content': prompt}],
     )
     raw = (resp.choices[0].message.content or '').strip()
     raw = re.sub(r'^```[a-z]*\n?', '', raw, flags=re.I)
@@ -1207,14 +1209,14 @@ def _call_claude_text(text_content: str) -> list[dict]:
     result = _json.loads(raw)
     return result if isinstance(result, list) else [result]
 
-def _call_claude_vision(data: bytes, mime: str) -> list[dict]:
+def _call_claude_vision(data: bytes, mime: str, extra_prompt: str = '') -> list[dict]:
     import base64, json as _json
     b64 = base64.standard_b64encode(data).decode()
     resp = _openai_client().chat.completions.create(
         model='gpt-4o-mini', max_tokens=2048,
         messages=[{'role':'user','content':[
             {'type':'image_url','image_url':{'url':f'data:{mime};base64,{b64}'}},
-            {'type':'text','text': _IMPORT_PROMPT},
+            {'type':'text','text': _IMPORT_PROMPT + extra_prompt},
         ]}],
     )
     raw = (resp.choices[0].message.content or '').strip()
@@ -1285,6 +1287,7 @@ def _save_extracted_records(records: list[dict], db: Session, source_label: str)
 async def admin_import_data(
     file: UploadFile | None = FastAPIFile(default=None),
     raw_text: str = Form(default=''),
+    platform_hint: str = Form(default=''),
     _: None = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -1292,26 +1295,34 @@ async def admin_import_data(
         raise HTTPException(400, 'OPENAI_API_KEY not configured on Render')
     if not file and not raw_text.strip():
         raise HTTPException(400, 'Provide a file or paste text')
+    hint = platform_hint.strip().lower() or ''
+    # Build a prompt that includes the platform hint so Claude doesn't guess wrong
+    prompt_extra = f' The data is from {hint}. Use "{hint}" as the platform for all records unless another platform is explicitly stated.' if hint else ''
+    def _prompt(): return _IMPORT_PROMPT.replace('Return [] if nothing found.', prompt_extra + ' Return [] if nothing found.')
     try:
         if file:
             data = await file.read()
             fname = (file.filename or '').lower()
             mime  = file.content_type or ''
             if mime.startswith('image/') or fname.endswith(('.png','.jpg','.jpeg','.webp','.gif')):
-                records = _call_claude_vision(data, mime or 'image/png')
+                records = _call_claude_vision(data, mime or 'image/png', extra_prompt=prompt_extra)
                 source = 'screenshot'
             elif fname.endswith('.xlsx') or 'spreadsheet' in mime:
                 text_content = _xlsx_to_text(data)
-                records = _call_claude_text(text_content)
+                records = _call_claude_text(text_content, extra_prompt=prompt_extra)
                 source = 'xlsx'
             else:
-                # CSV, TXT, or anything else — treat as text
                 text_content = data.decode('utf-8', errors='replace')
-                records = _call_claude_text(text_content)
+                records = _call_claude_text(text_content, extra_prompt=prompt_extra)
                 source = 'csv' if fname.endswith('.csv') else 'text'
         else:
-            records = _call_claude_text(raw_text)
+            records = _call_claude_text(raw_text, extra_prompt=prompt_extra)
             source = 'text'
+        # Apply platform_hint as fallback for any record where Claude left platform blank/wrong
+        if hint:
+            for rec in records:
+                if not rec.get('platform') or rec.get('platform') == 'direct':
+                    rec['platform'] = hint
     except Exception as e:
         raise HTTPException(500, f'Extraction failed: {e}')
 

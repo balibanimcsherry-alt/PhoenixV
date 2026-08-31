@@ -32,6 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function ScreenshotTab({ token, onSaved }: { token: string; onSaved?: () => void }) {
   const [mode, setMode]         = useState<'file'|'text'>('file');
+  const [platform, setPlatform] = useState('airbnb');
   const [file, setFile]         = useState<File | null>(null);
   const [preview, setPreview]   = useState('');
   const [pasteText, setPasteText] = useState('');
@@ -59,6 +60,7 @@ export function ScreenshotTab({ token, onSaved }: { token: string; onSaved?: () 
       const form = new FormData();
       if (mode === 'file' && file) form.append('file', file);
       if (mode === 'text') form.append('raw_text', pasteText);
+      form.append('platform_hint', platform);
       const res = await fetch('/api/admin/import-data', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -89,6 +91,20 @@ export function ScreenshotTab({ token, onSaved }: { token: string; onSaved?: () 
         Upload a screenshot, CSV, XLSX, TXT, or paste raw text from Airbnb / VRBO.
         Claude extracts bookings and payouts and saves them automatically.
       </p>
+
+      {/* Platform picker */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#5a8a90' }}>Source platform:</span>
+        {(['airbnb','vrbo','booking.com','direct'] as const).map(p => (
+          <button key={p} onClick={() => setPlatform(p)}
+            style={{ padding: '5px 14px', borderRadius: 20, border: '1.5px solid', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              borderColor: platform === p ? '#0d5f6b' : '#d0e4e8',
+              background:  platform === p ? '#0d5f6b' : '#fff',
+              color:       platform === p ? '#fff' : '#555' }}>
+            {p === 'booking.com' ? 'Booking.com' : p.charAt(0).toUpperCase() + p.slice(1)}
+          </button>
+        ))}
+      </div>
 
       {/* Mode toggle */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>

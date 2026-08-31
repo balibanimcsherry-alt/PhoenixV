@@ -102,7 +102,7 @@ function BookingsTab({ bookings, headers, load, fetchingEmails, fetchMsg, setFet
   const [expanded, setExpanded] = React.useState<string|null>(null);
   const [srcFilter, setSrcFilter] = React.useState<string>('all');
   const [editingId, setEditingId] = React.useState<string|null>(null);
-  const [editForm, setEditForm] = React.useState({guest_name:'',guest_phone:'',guest_email:''});
+  const [editForm, setEditForm] = React.useState({guest_name:'',guest_phone:'',guest_email:'',platform:''});
   const [editSaving, setEditSaving] = React.useState(false);
 
   const direct   = bookings.filter(b => b.source === 'direct');
@@ -301,6 +301,18 @@ function BookingsTab({ bookings, headers, load, fetchingEmails, fetchMsg, setFet
                         <div style={{marginTop:14,padding:'14px 16px',background:'#fff',borderRadius:8,border:'1px solid #c5dde2'}}>
                           <div style={{fontWeight:700,fontSize:13,color:'#0d5f6b',marginBottom:10}}>Edit guest details</div>
                           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+                            {!isDirect && (
+                              <div>
+                                <div style={{fontSize:11,fontWeight:600,color:'#5a8a90',marginBottom:4,textTransform:'uppercase'}}>Platform</div>
+                                <select value={editForm.platform} onChange={e=>setEditForm(f=>({...f,platform:e.target.value}))}
+                                  style={{width:'100%',padding:'6px 10px',borderRadius:6,border:'1px solid #c5dde2',fontSize:13,boxSizing:'border-box'}}>
+                                  <option value="airbnb">Airbnb</option>
+                                  <option value="vrbo">VRBO</option>
+                                  <option value="booking.com">Booking.com</option>
+                                  <option value="direct">Direct</option>
+                                </select>
+                              </div>
+                            )}
                             {(['guest_name','guest_phone','guest_email'] as const).map(field=>(
                               <div key={field}>
                                 <div style={{fontSize:11,fontWeight:600,color:'#5a8a90',marginBottom:4,textTransform:'uppercase'}}>{field.replace('guest_','').replace('_',' ')}</div>
@@ -327,7 +339,7 @@ function BookingsTab({ bookings, headers, load, fetchingEmails, fetchMsg, setFet
                           </div>
                         </div>
                       ) : (
-                        <button onClick={e=>{e.stopPropagation();setEditingId(b.id);setEditForm({guest_name:b.guest_name,guest_phone:b.phone,guest_email:b.email});}}
+                        <button onClick={e=>{e.stopPropagation();setEditingId(b.id);setEditForm({guest_name:b.guest_name,guest_phone:b.phone,guest_email:b.email,platform:b.source});}}
                           style={{marginTop:12,padding:'5px 14px',borderRadius:6,border:'1px solid #0d5f6b',background:'#f0fafb',color:'#0d5f6b',fontSize:12,fontWeight:700,cursor:'pointer'}}>
                           ✏️ Edit guest details
                         </button>
