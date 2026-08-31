@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone, date
-from fastapi import FastAPI, Depends, HTTPException, Header, Query, Request, BackgroundTasks, UploadFile, File as FastAPIFile
+from fastapi import FastAPI, Depends, HTTPException, Header, Query, Request, BackgroundTasks, UploadFile, File as FastAPIFile, Form
 from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -1180,90 +1180,146 @@ async def export_email_guests(_:None=Depends(require_admin)):
     items = await asyncio.to_thread(fetch_all_guest_records)
     return items
 
-# ── Screenshot upload ─────────────────────────────────────────────────────────
-@app.post('/api/admin/screenshot-upload')
-async def admin_screenshot_upload(file:UploadFile=FastAPIFile(...),_:None=Depends(require_admin),db:Session=Depends(get_db)):
-    import base64, json as _json
-    if not settings.anthropic_api_key:
-        raise HTTPException(400,'ANTHROPIC_API_KEY not configured on Render')
-    data = await file.read()
-    b64  = base64.standard_b64encode(data).decode()
-    mime = file.content_type or 'image/png'
-    try:
-        import anthropic as _ant
-        client = _ant.Anthropic(api_key=settings.anthropic_api_key)
-        resp = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=512,
-            messages=[{
-                'role':'user',
-                'content':[
-                    {'type':'image','source':{'type':'base64','media_type':mime,'data':b64}},
-                    {'type':'text','text':(
-                        'Extract booking/payout data from this screenshot. '
-                        'Return ONLY a JSON object with these keys (null if not visible): '
-                        '{"platform":"airbnb|vrbo|booking.com|direct","guest_name":"string",'
-                        '"checkin":"YYYY-MM-DD","checkout":"YYYY-MM-DD",'
-                        '"payout_amount":number,"confirmation_code":"string"}'
-                    )},
-                ],
-            }],
-        )
-        raw = resp.content[0].text.strip()
-        # Strip markdown code fences if present
-        raw = re.sub(r'^```[a-z]*\n?', '', raw, flags=re.I)
-        raw = re.sub(r'\n?```$', '', raw, flags=re.I)
-        extracted = _json.loads(raw)
-    except Exception as e:
-        raise HTTPException(500, f'Vision extraction failed: {e}')
+# ── Data import (screenshot / CSV / XLSX / raw text) ─────────────────────────
+_IMPORT_PROMPT = (
+    'Extract ALL booking and payout records from the data below. '
+    'Return ONLY a JSON array (one object per booking/reservation), even if there is just one. '
+    'Each object: {"platform":"airbnb|vrbo|booking.com|direct","guest_name":"string or null",'
+    '"checkin":"YYYY-MM-DD or null","checkout":"YYYY-MM-DD or null",'
+    '"payout_amount":number or null,"confirmation_code":"string or null"}. '
+    'Return [] if nothing found. No explanation, just the JSON array.'
+)
 
-    platform = (extracted.get('platform') or '').strip().lower()
-    checkin  = (extracted.get('checkin')  or '').strip()
-    checkout = (extracted.get('checkout') or '').strip()
-    name     = (extracted.get('guest_name') or '').strip()
-    payout   = float(extracted.get('payout_amount') or 0)
-    code     = (extracted.get('confirmation_code') or '').strip()
+def _call_claude_text(text_content: str) -> list[dict]:
+    import json as _json, anthropic as _ant
+    client = _ant.Anthropic(api_key=settings.anthropic_api_key)
+    resp = client.messages.create(
+        model='claude-haiku-4-5-20251001', max_tokens=2048,
+        messages=[{'role':'user','content': _IMPORT_PROMPT + '\n\n' + text_content[:12000]}],
+    )
+    raw = resp.content[0].text.strip()
+    raw = re.sub(r'^```[a-z]*\n?', '', raw, flags=re.I)
+    raw = re.sub(r'\n?```$', '', raw, flags=re.I)
+    result = _json.loads(raw)
+    return result if isinstance(result, list) else [result]
 
-    updated_row: IcalReservation | None = None
-    if platform and checkin:
-        all_rows = db.query(IcalReservation).all()
-        by_date = {(r.platform, r.checkin): r for r in all_rows}
+def _call_claude_vision(data: bytes, mime: str) -> list[dict]:
+    import base64, json as _json, anthropic as _ant
+    b64 = base64.standard_b64encode(data).decode()
+    client = _ant.Anthropic(api_key=settings.anthropic_api_key)
+    resp = client.messages.create(
+        model='claude-haiku-4-5-20251001', max_tokens=2048,
+        messages=[{'role':'user','content':[
+            {'type':'image','source':{'type':'base64','media_type':mime,'data':b64}},
+            {'type':'text','text': _IMPORT_PROMPT},
+        ]}],
+    )
+    raw = resp.content[0].text.strip()
+    raw = re.sub(r'^```[a-z]*\n?', '', raw, flags=re.I)
+    raw = re.sub(r'\n?```$', '', raw, flags=re.I)
+    result = _json.loads(raw)
+    return result if isinstance(result, list) else [result]
+
+def _xlsx_to_text(data: bytes) -> str:
+    import io
+    from openpyxl import load_workbook
+    wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    lines = []
+    for ws in wb.worksheets:
+        for row in ws.iter_rows(values_only=True):
+            line = '\t'.join('' if v is None else str(v) for v in row)
+            if line.strip():
+                lines.append(line)
+    return '\n'.join(lines)
+
+def _save_extracted_records(records: list[dict], db: Session, source_label: str) -> list[dict]:
+    all_rows = db.query(IcalReservation).all()
+    by_date = {(r.platform, r.checkin): r for r in all_rows}
+    results = []
+    committed = False
+    for rec in records:
+        platform = (rec.get('platform') or '').strip().lower()
+        checkin  = (rec.get('checkin')  or '').strip()
+        checkout = (rec.get('checkout') or '').strip()
+        name     = (rec.get('guest_name') or '').strip()
+        payout   = float(rec.get('payout_amount') or 0)
+        code     = (rec.get('confirmation_code') or '').strip()
+        if not platform or not checkin:
+            results.append({**rec, 'status':'skipped','reservation_id':None})
+            continue
         row = by_date.get((platform, checkin))
         if not row:
-            # Try year shifts
             try:
                 ci_d = date.fromisoformat(checkin)
                 for delta in (1, 2):
-                    alt = ci_d.replace(year=ci_d.year + delta).isoformat()
+                    alt = ci_d.replace(year=ci_d.year+delta).isoformat()
                     row = by_date.get((platform, alt))
-                    if row:
-                        break
-            except Exception:
-                pass
+                    if row: break
+            except Exception: pass
         if row:
             changed = False
-            if name   and not row.guest_name:    row.guest_name    = name;    changed = True
+            if name    and not row.guest_name:    row.guest_name    = name;    changed = True
             if checkout and not row.checkout:     row.checkout      = checkout; changed = True
             if payout  and not row.payout_amount: row.payout_amount = payout;  changed = True
-            if changed: db.commit()
-            updated_row = row
+            if changed: committed = True
+            results.append({**rec,'status':'updated','reservation_id':row.id})
         else:
-            # Create new IcalReservation from screenshot data
-            uid = code or f'SCREENSHOT-{platform}-{checkin}'
+            uid = code or f'{source_label.upper()}-{platform}-{checkin}'
             existing = db.query(IcalReservation).filter(IcalReservation.uid==uid).first()
-            if not existing:
-                new_res = IcalReservation(
-                    uid=uid, platform=platform, checkin=checkin, checkout=checkout or '',
-                    guest_name=name, payout_amount=payout, summary=f'Screenshot import',
-                )
-                db.add(new_res); db.commit()
-                updated_row = new_res
+            if existing:
+                results.append({**rec,'status':'duplicate','reservation_id':existing.id})
+            else:
+                new_res = IcalReservation(uid=uid,platform=platform,checkin=checkin,
+                    checkout=checkout,guest_name=name,payout_amount=payout,summary=f'{source_label} import')
+                db.add(new_res); db.flush()
+                by_date[(platform, checkin)] = new_res
+                results.append({**rec,'status':'created','reservation_id':new_res.id})
+                committed = True
+    if committed: db.commit()
+    return results
 
-    return {
-        'extracted': extracted,
-        'matched': updated_row is not None,
-        'reservation_id': updated_row.id if updated_row else None,
-    }
+@app.post('/api/admin/import-data')
+async def admin_import_data(
+    file: UploadFile | None = FastAPIFile(default=None),
+    raw_text: str = Form(default=''),
+    _: None = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    if not settings.anthropic_api_key:
+        raise HTTPException(400, 'ANTHROPIC_API_KEY not configured on Render')
+    if not file and not raw_text.strip():
+        raise HTTPException(400, 'Provide a file or paste text')
+    try:
+        if file:
+            data = await file.read()
+            fname = (file.filename or '').lower()
+            mime  = file.content_type or ''
+            if mime.startswith('image/') or fname.endswith(('.png','.jpg','.jpeg','.webp','.gif')):
+                records = _call_claude_vision(data, mime or 'image/png')
+                source = 'screenshot'
+            elif fname.endswith('.xlsx') or 'spreadsheet' in mime:
+                text_content = _xlsx_to_text(data)
+                records = _call_claude_text(text_content)
+                source = 'xlsx'
+            else:
+                # CSV, TXT, or anything else — treat as text
+                text_content = data.decode('utf-8', errors='replace')
+                records = _call_claude_text(text_content)
+                source = 'csv' if fname.endswith('.csv') else 'text'
+        else:
+            records = _call_claude_text(raw_text)
+            source = 'text'
+    except Exception as e:
+        raise HTTPException(500, f'Extraction failed: {e}')
+
+    results = await asyncio.to_thread(_save_extracted_records, records, db, source)
+    saved   = sum(1 for r in results if r['status'] in ('created','updated'))
+    return {'records': results, 'total': len(results), 'saved': saved}
+
+# keep old path as alias so any cached frontend call still works
+@app.post('/api/admin/screenshot-upload')
+async def admin_screenshot_upload_alias(file:UploadFile=FastAPIFile(...),_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    return await admin_import_data(file=file, raw_text='', _=_, db=db)
 
 # ── Caretaker auth ───────────────────────────────────────────────────────────
 class _CaretakerLogin(BaseModel): username:str; password:str

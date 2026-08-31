@@ -539,7 +539,7 @@ export default function Admin() {
         <h3>Owner Dashboard</h3>
         {tabs.map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.07)' }}>
-            {t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t === 'screenshot' ? 'Screenshot Import' : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1)}
+            {t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t === 'screenshot' ? 'Import Data' : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1)}
           </button>
         ))}
         <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); }} style={{ marginTop: 'auto', background: 'rgba(200,60,60,.55)', borderRadius: 8, fontWeight: 600 }}>
