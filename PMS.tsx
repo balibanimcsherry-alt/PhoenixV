@@ -42,6 +42,8 @@ function Badge({ platform }: { platform: string }) {
   );
 }
 
+interface ManualBlock { id: number; checkin: string; checkout: string; reason: string; created_at: string; }
+
 export function PMSTab({ token }: { token: string }) {
   const [data, setData] = useState<PMSData | null>(null);
   const [error, setError] = useState('');
@@ -51,6 +53,10 @@ export function PMSTab({ token }: { token: string }) {
   const [noteText, setNoteText] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [blocks, setBlocks] = useState<ManualBlock[]>([]);
+  const [blockForm, setBlockForm] = useState({ checkin: '', checkout: '', reason: '' });
+  const [blockSaving, setBlockSaving] = useState(false);
+  const [blockError, setBlockError] = useState('');
   const headers = { Authorization: `Bearer ${token}` };
 
   const load = async () => {
@@ -62,7 +68,11 @@ export function PMSTab({ token }: { token: string }) {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadBlocks = async () => {
+    try { setBlocks(await api<ManualBlock[]>('/api/admin/blocks', { headers })); } catch {}
+  };
+
+  useEffect(() => { load(); loadBlocks(); }, []);
 
   const sync = async () => {
     setSyncing(true);
@@ -309,6 +319,75 @@ export function PMSTab({ token }: { token: string }) {
           <strong>Airbnb:</strong> Calendar → Availability → Import Calendar &nbsp;|&nbsp;
           <strong>VRBO:</strong> Calendar → Import &nbsp;|&nbsp;
           <strong>Booking.com:</strong> Calendar → Sync/Import iCal
+        </p>
+      </div>
+
+      {/* Manual blocks */}
+      <div style={{ marginTop: 28, padding: 20, background: '#fff8f0', border: '1px solid #f5dfc0', borderRadius: 12 }}>
+        <h3 style={{ margin: '0 0 6px', color: '#7a4a10' }}>🚫 Manual Date Blocks</h3>
+        <p style={{ fontSize: 13, color: '#6b5030', margin: '0 0 16px' }}>
+          Block dates for owner stays, maintenance, or holds. Blocks are included in your iCal feed so Airbnb/VRBO/Booking.com pick them up automatically.
+        </p>
+
+        {/* Add block form */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>Check-in</div>
+            <input type="date" value={blockForm.checkin} onChange={e => setBlockForm(f => ({ ...f, checkin: e.target.value }))}
+              style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #e0c8a0', fontSize: 13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>Check-out</div>
+            <input type="date" value={blockForm.checkout} onChange={e => setBlockForm(f => ({ ...f, checkout: e.target.value }))}
+              style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #e0c8a0', fontSize: 13 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>Label (optional)</div>
+            <input type="text" value={blockForm.reason} onChange={e => setBlockForm(f => ({ ...f, reason: e.target.value }))}
+              placeholder="Owner block"
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #e0c8a0', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <button className="btn" disabled={blockSaving || !blockForm.checkin || !blockForm.checkout}
+            style={{ background: '#c87c20', color: '#fff', border: 'none', padding: '8px 18px', flexShrink: 0 }}
+            onClick={async () => {
+              setBlockError('');
+              setBlockSaving(true);
+              try {
+                await api('/api/admin/blocks', { method: 'POST', headers, body: JSON.stringify({ checkin: blockForm.checkin, checkout: blockForm.checkout, reason: blockForm.reason || 'Owner block' }) });
+                setBlockForm({ checkin: '', checkout: '', reason: '' });
+                await loadBlocks();
+              } catch (e: any) { setBlockError(e?.message || 'Failed to save block'); }
+              setBlockSaving(false);
+            }}>
+            {blockSaving ? 'Saving…' : '+ Add Block'}
+          </button>
+        </div>
+        {blockError && <div style={{ color: '#a74840', fontSize: 13, marginBottom: 10 }}>{blockError}</div>}
+
+        {/* Block list */}
+        {blocks.length === 0 ? (
+          <div style={{ color: '#bbb', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>No manual blocks. Add one above.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {blocks.map(b => (
+              <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid #f0d8b0', borderRadius: 8, padding: '10px 14px' }}>
+                <div style={{ width: 4, alignSelf: 'stretch', background: '#c87c20', borderRadius: 4, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{b.reason}</div>
+                  <div style={{ fontSize: 13, color: '#777', marginTop: 2 }}>{b.checkin} → {b.checkout} · {nightCount(b.checkin, b.checkout)} night{nightCount(b.checkin, b.checkout) !== 1 ? 's' : ''}</div>
+                </div>
+                <button onClick={async () => {
+                  if (!confirm(`Delete block "${b.reason}" (${b.checkin} – ${b.checkout})?`)) return;
+                  try { await api(`/api/admin/blocks/${b.id}`, { method: 'DELETE', headers }); await loadBlocks(); } catch {}
+                }} style={{ background: 'none', border: '1px solid #e0c8a0', borderRadius: 6, cursor: 'pointer', padding: '4px 10px', color: '#a74840', fontSize: 13 }}>
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p style={{ fontSize: 12, color: '#999', margin: '12px 0 0' }}>
+          Blocks flow out via the iCal feed above — OTA calendars sync them on their next refresh (usually within a few hours).
         </p>
       </div>
     </div>

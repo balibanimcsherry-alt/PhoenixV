@@ -26,3 +26,5 @@ class DailyPrice(Base):
     __tablename__='daily_prices'; date:Mapped[str]=mapped_column(String(10),primary_key=True); price:Mapped[float]=mapped_column(Float,default=0); min_stay:Mapped[int]=mapped_column(Integer,default=1); demand_color:Mapped[str]=mapped_column(String(20),default=''); occupancy:Mapped[int]=mapped_column(Integer,default=0); synced_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
 class MarketingLog(Base):
     __tablename__='marketing_log'; id:Mapped[int]=mapped_column(Integer,primary_key=True); campaign_id:Mapped[str]=mapped_column(String(80)); sent_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow); recipient_count:Mapped[int]=mapped_column(Integer,default=0)
+class ManualBlock(Base):
+    __tablename__='manual_blocks'; id:Mapped[int]=mapped_column(Integer,primary_key=True); checkin:Mapped[str]=mapped_column(String(20)); checkout:Mapped[str]=mapped_column(String(20)); reason:Mapped[str]=mapped_column(String(200),default='Owner block'); created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)

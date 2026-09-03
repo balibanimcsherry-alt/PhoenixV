@@ -12,7 +12,7 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -378,20 +378,25 @@ async def get_listings(
         return {**r.json(),'source':'live'}
 
 @app.get('/api/availability/blocked')
-async def blocked_dates():
+async def blocked_dates(db:Session=Depends(get_db)):
     from integrations import _parse_ical_date, _blocked_ranges
+    today_dt=datetime.utcnow().date()
+    result=[]
     url=settings.airbnb_ical_url
-    if not url: return {'blocked':[],'source':'demo'}
-    try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r=await c.get(url,follow_redirects=True)
-        if r.status_code!=200: return {'blocked':[],'source':'error'}
-        ranges=_blocked_ranges(r.text)
-        today_dt=datetime.utcnow().date()
-        result=[{'start':str(s),'end':str(e)} for s,e in ranges if e>today_dt]
-        return {'blocked':result,'source':'airbnb'}
-    except Exception:
-        return {'blocked':[],'source':'error'}
+    if url:
+        try:
+            async with httpx.AsyncClient(timeout=15) as c:
+                r=await c.get(url,follow_redirects=True)
+            if r.status_code==200:
+                result=[{'start':str(s),'end':str(e)} for s,e in _blocked_ranges(r.text) if e>today_dt]
+        except Exception:
+            pass
+    for blk in db.query(ManualBlock).all():
+        try:
+            ci=date.fromisoformat(blk.checkin); co=date.fromisoformat(blk.checkout)
+        except Exception: continue
+        if co>today_dt: result.append({'start':str(ci),'end':str(co)})
+    return {'blocked':result,'source':'combined'}
 
 def _build_calendar_ics(db: Session) -> str:
     bookings = db.query(BookingRequest).filter(
@@ -435,6 +440,21 @@ def _build_calendar_ics(db: Session) -> str:
             f'CREATED:{created}',
             'END:VEVENT',
         ]
+    for blk in db.query(ManualBlock).all():
+        try:
+            ci = date.fromisoformat(blk.checkin)
+            co = date.fromisoformat(blk.checkout)
+        except Exception:
+            continue
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:block-{blk.id}@coastalhaven',
+            f'DTSTART;VALUE=DATE:{ci.strftime("%Y%m%d")}',
+            f'DTEND;VALUE=DATE:{co.strftime("%Y%m%d")}',
+            f'SUMMARY:{blk.reason or "Owner block"}',
+            'STATUS:CONFIRMED',
+            'END:VEVENT',
+        ]
     lines.append('END:VCALENDAR')
     return '\r\n'.join(lines)
 
@@ -453,6 +473,24 @@ def export_calendar_path(token:str, db:Session=Depends(get_db)):
 
 @app.get('/health')
 def health(): return {'ok':True,'service':'coastal-haven-api'}
+
+class BlockIn(BaseModel): checkin:str; checkout:str; reason:str='Owner block'
+@app.get('/api/admin/blocks')
+def list_blocks(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    return [{'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'reason':b.reason,'created_at':b.created_at.isoformat()} for b in db.query(ManualBlock).order_by(ManualBlock.checkin).all()]
+@app.post('/api/admin/blocks',status_code=201)
+def create_block(body:BlockIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    try: date.fromisoformat(body.checkin); date.fromisoformat(body.checkout)
+    except ValueError: raise HTTPException(400,'Invalid date format')
+    if body.checkout<=body.checkin: raise HTTPException(400,'checkout must be after checkin')
+    b=ManualBlock(checkin=body.checkin,checkout=body.checkout,reason=body.reason or 'Owner block')
+    db.add(b);db.commit();db.refresh(b)
+    return {'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'reason':b.reason}
+@app.delete('/api/admin/blocks/{block_id}')
+def delete_block(block_id:int,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    b=db.get(ManualBlock,block_id)
+    if not b: raise HTTPException(404,'Block not found')
+    db.delete(b);db.commit();return {'ok':True}
 
 @app.get('/api/booking/quote')
 async def quote(checkin:str,checkout:str,guests:int=4,db:Session=Depends(get_db)):
