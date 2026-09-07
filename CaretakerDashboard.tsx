@@ -47,12 +47,25 @@ function ResRow({ r }: { r: CaretakerRes }) {
   );
 }
 
+const INPUT: React.CSSProperties = {
+  width: '100%', padding: '11px 14px', borderRadius: 9, border: '1px solid #ddd',
+  fontSize: 14, boxSizing: 'border-box', outline: 'none',
+};
+
 export default function CaretakerDashboard() {
   const [token, setToken] = useState(localStorage.getItem('caretakerToken') || '');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [regName, setRegName] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirm, setRegConfirm] = useState('');
+  const [regPin, setRegPin] = useState('');
   const [reservations, setReservations] = useState<CaretakerRes[]>([]);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const login = async () => {
@@ -65,6 +78,30 @@ export default function CaretakerDashboard() {
       setToken(r.token);
     } catch {
       setError('Invalid username or password.');
+    }
+    setLoading(false);
+  };
+
+  const register = async () => {
+    setError(''); setSuccess('');
+    if (!regName || !regUsername || !regEmail || !regPassword) {
+      setError('All fields are required.'); return;
+    }
+    if (regPassword !== regConfirm) { setError('Passwords do not match.'); return; }
+    setLoading(true);
+    try {
+      await api('/api/caretaker/register', {
+        method: 'POST',
+        body: JSON.stringify({ name: regName, username: regUsername, email: regEmail, password: regPassword, pin: regPin }),
+      });
+      setSuccess('Account created! You can now sign in.');
+      setMode('login');
+      setUsername(regUsername);
+    } catch (e: any) {
+      const msg = e?.message || '';
+      if (msg.includes('409') || msg.toLowerCase().includes('taken')) setError('Username already taken.');
+      else if (msg.includes('403') || msg.toLowerCase().includes('pin')) setError('Invalid PIN. Registration requires the correct PIN.');
+      else setError('Registration failed. Please try again.');
     }
     setLoading(false);
   };
@@ -86,22 +123,60 @@ export default function CaretakerDashboard() {
 
   if (!token) return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#f5f9fa,#e8f4f5)', padding: 20 }}>
-      <div style={{ background: '#fff', borderRadius: 20, padding: 40, boxShadow: '0 8px 40px rgba(0,0,0,.12)', width: '100%', maxWidth: 340 }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+      <div style={{ background: '#fff', borderRadius: 20, padding: 36, boxShadow: '0 8px 40px rgba(0,0,0,.12)', width: '100%', maxWidth: 380 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>🏠</div>
           <h2 style={{ margin: 0, color: '#0d5f6b', fontSize: 22 }}>Caretaker Portal</h2>
           <p style={{ margin: '6px 0 0', color: '#888', fontSize: 13 }}>Coastal Haven · Phoenix V Unit 1408</p>
         </div>
-        <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username"
-          style={{ width: '100%', padding: '11px 14px', marginBottom: 12, borderRadius: 9, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', outline: 'none' }} />
-        <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password"
-          style={{ width: '100%', padding: '11px 14px', marginBottom: 18, borderRadius: 9, border: '1px solid #ddd', fontSize: 14, boxSizing: 'border-box', outline: 'none' }}
-          onKeyDown={e => e.key === 'Enter' && login()} />
-        {error && <p style={{ color: '#dc3545', fontSize: 13, margin: '-8px 0 14px', textAlign: 'center' }}>{error}</p>}
-        <button onClick={login} disabled={loading}
-          style={{ width: '100%', padding: 13, background: '#0d5f6b', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'Signing in…' : 'Sign In'}
-        </button>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, background: '#f0f4f3', borderRadius: 10, padding: 4, marginBottom: 22 }}>
+          {(['login', 'register'] as const).map(m => (
+            <button key={m} onClick={() => { setMode(m); setError(''); setSuccess(''); }}
+              style={{ flex: 1, background: mode === m ? '#fff' : 'transparent', border: 0, borderRadius: 7,
+                padding: '9px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                color: mode === m ? '#0d5f6b' : '#888',
+                boxShadow: mode === m ? '0 2px 8px rgba(0,0,0,.08)' : 'none' }}>
+              {m === 'login' ? 'Sign In' : 'Register'}
+            </button>
+          ))}
+        </div>
+
+        {success && <p style={{ color: '#28704e', fontSize: 13, margin: '0 0 14px', textAlign: 'center', fontWeight: 600 }}>{success}</p>}
+        {error && <p style={{ color: '#dc3545', fontSize: 13, margin: '0 0 14px', textAlign: 'center' }}>{error}</p>}
+
+        {mode === 'login' ? (
+          <>
+            <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username"
+              style={{ ...INPUT, marginBottom: 12 }} />
+            <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password"
+              style={{ ...INPUT, marginBottom: 20 }} onKeyDown={e => e.key === 'Enter' && login()} />
+            <button onClick={login} disabled={loading}
+              style={{ width: '100%', padding: 13, background: '#0d5f6b', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Signing in…' : 'Sign In'}
+            </button>
+          </>
+        ) : (
+          <>
+            <input value={regName} onChange={e => setRegName(e.target.value)} placeholder="Full name"
+              style={{ ...INPUT, marginBottom: 10 }} />
+            <input value={regUsername} onChange={e => setRegUsername(e.target.value)} placeholder="Username"
+              style={{ ...INPUT, marginBottom: 10 }} />
+            <input value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="Email address" type="email"
+              style={{ ...INPUT, marginBottom: 10 }} />
+            <input value={regPassword} onChange={e => setRegPassword(e.target.value)} type="password" placeholder="Password"
+              style={{ ...INPUT, marginBottom: 10 }} />
+            <input value={regConfirm} onChange={e => setRegConfirm(e.target.value)} type="password" placeholder="Confirm password"
+              style={{ ...INPUT, marginBottom: 10 }} />
+            <input value={regPin} onChange={e => setRegPin(e.target.value)} type="password" placeholder="Registration PIN"
+              style={{ ...INPUT, marginBottom: 20 }} />
+            <button onClick={register} disabled={loading}
+              style={{ width: '100%', padding: 13, background: '#0d5f6b', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Creating account…' : 'Create Account'}
+            </button>
+          </>
+        )}
       </div>
     </main>
   );

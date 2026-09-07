@@ -28,3 +28,5 @@ class MarketingLog(Base):
     __tablename__='marketing_log'; id:Mapped[int]=mapped_column(Integer,primary_key=True); campaign_id:Mapped[str]=mapped_column(String(80)); sent_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow); recipient_count:Mapped[int]=mapped_column(Integer,default=0)
 class ManualBlock(Base):
     __tablename__='manual_blocks'; id:Mapped[int]=mapped_column(Integer,primary_key=True); checkin:Mapped[str]=mapped_column(String(20)); checkout:Mapped[str]=mapped_column(String(20)); reason:Mapped[str]=mapped_column(String(200),default='Owner block'); created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)
+class CaretakerAccount(Base):
+    __tablename__='caretaker_accounts'; id:Mapped[int]=mapped_column(Integer,primary_key=True); username:Mapped[str]=mapped_column(String(100),unique=True); password_hash:Mapped[str]=mapped_column(String(255)); email:Mapped[str]=mapped_column(String(200)); name:Mapped[str]=mapped_column(String(200),default=''); created_at:Mapped[datetime]=mapped_column(DateTime,default=datetime.utcnow)

@@ -835,3 +835,15 @@ html[data-theme="stormy-day"] body{background:linear-gradient(180deg,#ececf0 0%,
 
 @media(max-width:900px){.shells-grid{grid-template-columns:repeat(2,1fr)}.shells-season-strip{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.guide-list-item{padding:16px}.shells-grid{grid-template-columns:1fr}.guide-event-card{padding:22px 20px}.shells-season-strip{grid-template-columns:repeat(2,1fr)}.guide-tabs{gap:8px}.guide-tab{font-size:13px;padding:8px 14px}}
+
+/* ── Admin mobile ────────────────────────────────────────────────────── */
+@media(max-width:768px){
+  .admin-page{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .admin-side{position:static;height:auto;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:10px 10px;gap:4px;-webkit-overflow-scrolling:touch}
+  .admin-side img{display:none}
+  .admin-side h3{display:none}
+  .admin-side a,.admin-side button{white-space:nowrap;flex-shrink:0;padding:7px 12px;font-size:12px}
+  .admin-main{padding:24px 16px;max-width:100%}
+  .kpi-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+  .admin-card{padding:16px}
+}

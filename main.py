@@ -12,7 +12,7 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock, CaretakerAccount
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -21,7 +21,7 @@ from email_reader import fetch_ota_guest_info
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
     preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request,
-    send_marketing_campaign)
+    send_marketing_campaign, send_caretaker_notification)
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 
 _MARKETING_CAMPAIGNS = [
@@ -646,10 +646,10 @@ async def stripe_webhook(request:Request,db:Session=Depends(get_db)):
             b=db.get(BookingRequest,bid)
             if b:
                 b.status='confirmed'; db.commit(); db.refresh(b)
-                # Owner notification only — guest confirmation requires manual approval
+                data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
                 if b.email:
-                    data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
                     send_owner_notification(data)
+                _notify_caretakers(db, {**data, 'platform':'direct'})
     return {'ok':True}
 
 @app.post('/api/chat/messages')
@@ -731,11 +731,12 @@ def update_booking_status(booking_id:int,payload:_StatusIn,_:None=Depends(requir
     if not b: raise HTTPException(404,'Booking not found')
     b.status=payload.status
     db.commit()
-    # Owner notification only — guest confirmation email requires manual send
-    if payload.status == 'confirmed' and b.email:
+    if payload.status == 'confirmed':
         data={'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'guests':b.guests,
               'guest_name':b.guest_name,'email':b.email,'phone':b.phone,'address':b.address,'total':b.total}
-        send_owner_notification(data)
+        if b.email:
+            send_owner_notification(data)
+        _notify_caretakers(db, {**data, 'platform':'direct'})
     return {'ok':True,'id':b.id,'status':b.status}
 
 @app.get('/api/admin/chat')
@@ -1031,6 +1032,7 @@ async def _do_pms_sync(db: Session) -> int:
         if not url: continue
         raw_events = await sync_platform_ical(platform, url)
         events = _consolidate_daily_blocks(raw_events)
+        new_for_notify = []
         for ev in events:
             uid = ev.get('uid')
             if not uid: continue
@@ -1061,7 +1063,6 @@ async def _do_pms_sync(db: Session) -> int:
                 if email and not existing.guest_email: existing.guest_email = email
                 existing.summary=ev.get('summary',''); existing.raw_description=ev.get('raw_description','')
                 existing.synced_at=datetime.utcnow()
-                row = existing
             else:
                 row = IcalReservation(uid=scoped,platform=platform,checkin=ci,checkout=co,
                     guest_name=name,guest_phone=phone,guest_email=email,
@@ -1069,7 +1070,10 @@ async def _do_pms_sync(db: Session) -> int:
                     email_sent=False)
                 db.add(row)
                 total_new+=1
+                new_for_notify.append({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co,'guests':None})
         db.commit()
+        for res_data in new_for_notify:
+            _notify_caretakers(db, res_data)
     _dedup_ical_reservations(db)
     return total_new
 
@@ -1376,6 +1380,17 @@ async def admin_import_data(
 async def admin_screenshot_upload_alias(file:UploadFile=FastAPIFile(...),_:None=Depends(require_admin),db:Session=Depends(get_db)):
     return await admin_import_data(file=file, raw_text='', _=_, db=db)
 
+def _notify_caretakers(db: Session, res_data: dict):
+    """Send reservation notification to all registered caretakers + config email."""
+    emails = [a.email for a in db.query(CaretakerAccount).all() if a.email]
+    if settings.caretaker_email and settings.caretaker_email not in emails:
+        emails.append(settings.caretaker_email)
+    for email in emails:
+        try:
+            send_caretaker_notification(res_data, email)
+        except Exception as e:
+            print(f'Caretaker notification error to {email}: {e}')
+
 # ── Caretaker auth ───────────────────────────────────────────────────────────
 class _CaretakerLogin(BaseModel): username:str; password:str
 
@@ -1389,11 +1404,25 @@ def _require_caretaker(authorization:str|None=Header(default=None)):
         if p.get('sub')!='caretaker': raise HTTPException(401,'Not a caretaker token')
     except JWTError: raise HTTPException(401,'Invalid or expired token')
 
+class _CaretakerRegister(BaseModel): username:str; password:str; email:str; name:str=''; pin:str
+
+@app.post('/api/caretaker/register')
+def caretaker_register(payload:_CaretakerRegister,db:Session=Depends(get_db)):
+    if payload.pin!='1984': raise HTTPException(403,'Invalid registration PIN')
+    if db.query(CaretakerAccount).filter(CaretakerAccount.username==payload.username).first():
+        raise HTTPException(409,'Username already taken')
+    db.add(CaretakerAccount(username=payload.username,password_hash=_pwd.hash(payload.password),email=payload.email,name=payload.name))
+    db.commit()
+    return {'ok':True}
+
 @app.post('/api/caretaker/login')
-def caretaker_login(payload:_CaretakerLogin):
-    if payload.username!=settings.caretaker_username or payload.password!=settings.caretaker_password:
-        raise HTTPException(401,'Invalid credentials')
-    return {'token':_make_caretaker_token()}
+def caretaker_login(payload:_CaretakerLogin,db:Session=Depends(get_db)):
+    account=db.query(CaretakerAccount).filter(CaretakerAccount.username==payload.username).first()
+    if account and _pwd.verify(payload.password,account.password_hash):
+        return {'token':_make_caretaker_token()}
+    if payload.username==settings.caretaker_username and payload.password==settings.caretaker_password:
+        return {'token':_make_caretaker_token()}
+    raise HTTPException(401,'Invalid credentials')
 
 @app.get('/api/caretaker/reservations')
 def caretaker_reservations(_:None=Depends(_require_caretaker),db:Session=Depends(get_db)):

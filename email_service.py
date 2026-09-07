@@ -769,6 +769,142 @@ def send_ota_reservation_notification(reservation: dict) -> bool:
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# CARETAKER RESERVATION NOTIFICATION
+# ════════════════════════════════════════════════════════════════════════════
+IMG_HERO_CARETAKER = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=640&h=380&fit=crop&q=85'
+
+def send_caretaker_notification(reservation: dict, caretaker_email: str) -> bool:
+    """Send a new-reservation alert to the caretaker with everything they need."""
+    if not caretaker_email:
+        return False
+    from datetime import date as _date
+    platform  = reservation.get('platform', 'direct')
+    plabel    = _PLATFORM_LABEL.get(platform, platform.title() if platform else 'Direct')
+    pcolor    = _PLATFORM_COLOR.get(platform, _C_TEAL)
+    guest     = reservation.get('guest_name') or 'Guest name not shared'
+    checkin   = reservation.get('checkin', '')
+    checkout  = reservation.get('checkout', '')
+    guests    = reservation.get('guests')
+    try:
+        nights = (_date.fromisoformat(checkout) - _date.fromisoformat(checkin)).days
+    except:
+        nights = 0
+    ci_fmt = _fmt(checkin)
+    co_fmt = _fmt(checkout)
+
+    # Compute prep & clean dates
+    try:
+        clean_date = _fmt(checkout)
+        prep_date  = _fmt((_date.fromisoformat(checkin) - __import__('datetime').timedelta(days=1)).isoformat())
+    except:
+        clean_date = co_fmt
+        prep_date  = '1 day before check-in'
+
+    guests_row = f'<tr class="detail-row"><td>Guests</td><td>{guests} guest{"s" if guests != 1 else ""}</td></tr>' if guests else ''
+
+    body = f"""
+<p class="greeting">
+  A new reservation has been added to the calendar. Here's everything you need to prepare the unit.
+</p>
+
+<!-- Platform badge -->
+<div style="text-align:center;margin:0 0 24px">
+  <span style="display:inline-block;background:{pcolor};color:#fff;
+    padding:9px 26px;border-radius:999px;font-size:14px;font-weight:700;
+    letter-spacing:.5px;box-shadow:0 4px 14px {pcolor}55">
+    {plabel} Reservation
+  </span>
+</div>
+
+<!-- Date band -->
+<table class="date-band" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+  <td class="date-cell" width="43%">
+    <div class="date-label">&#9658; Check-in</div>
+    <div class="date-value">{ci_fmt}</div>
+    <div class="date-note">Guests arrive after 4:00 PM</div>
+  </td>
+  <td class="date-divider" width="1"></td>
+  <td style="text-align:center;padding:16px 8px;background:#e4f5f8;width:14%">
+    <div style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:{_C_TEAL};line-height:1">{nights}</div>
+    <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#7aabb4;margin-top:4px">nights</div>
+  </td>
+  <td class="date-divider" width="1"></td>
+  <td class="date-cell" width="43%">
+    <div class="date-label">&#9658; Check-out</div>
+    <div class="date-value">{co_fmt}</div>
+    <div class="date-note">Guests leave by 10:00 AM</div>
+  </td>
+</tr>
+</table>
+
+<!-- Reservation details -->
+<table class="detail-table" width="100%" cellpadding="0" cellspacing="0">
+<tr class="detail-row"><td>Platform</td><td><strong>{plabel}</strong></td></tr>
+<tr class="detail-row"><td>Guest name</td><td><strong>{guest}</strong></td></tr>
+{guests_row}
+<tr class="detail-row"><td>Stay duration</td><td>{nights} night{"s" if nights != 1 else ""}</td></tr>
+<tr class="detail-row"><td>Unit</td><td>Coastal Haven · Phoenix V Unit 1408 · 14th Floor</td></tr>
+</table>
+
+<!-- Action checklist -->
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border-radius:14px;overflow:hidden;border:1px solid #b8dfe8">
+<tr><td class="wave-bg"><div class="wave-bg-inner">
+  <div class="info-box info-box-teal" style="margin:0">
+    <h3>&#128203; Your action checklist</h3>
+    <ul>
+      <li><strong>Clean by 3:00 PM on {clean_date}</strong> — guests check out at 10 AM, next arrival at 4 PM</li>
+      <li><strong>Day before check-in ({prep_date})</strong> — stock welcome supplies and verify door code works</li>
+      <li>Strip all beds and replace with fresh linens</li>
+      <li>Restock paper towels, trash bags, dish soap, and coffee pods</li>
+      <li>Wipe all surfaces, clean bathrooms, mop floors</li>
+      <li>Return beach chairs &amp; umbrella to storage closet</li>
+      <li>Confirm balcony is swept and patio furniture is in order</li>
+      <li>Run dishwasher and empty it before guests arrive</li>
+    </ul>
+  </div>
+</div></td></tr>
+</table>
+
+<!-- Prep reminder -->
+<div class="info-box info-box-sand">
+  <h3>&#127968; Pre-arrival prep (day before check-in)</h3>
+  <ul>
+    <li>Test door keypad code is working</li>
+    <li>Verify AC/heat is set to 72°F</li>
+    <li>Place welcome binder on kitchen counter</li>
+    <li>Check pool towels are stocked in the closet</li>
+    <li>Ensure all TVs and WiFi are working</li>
+    <li>Top off coffee, tea, and starter kitchen supplies</li>
+  </ul>
+</div>
+
+<div class="cta">
+  <a class="cta-btn" href="{PROPERTY_URL}/cleaner">Open Caretaker Portal</a>
+</div>
+<p style="text-align:center;font-size:13px;color:#7aabb0;margin-top:18px;line-height:1.7">
+  This is an automated notification from Coastal Haven.<br>
+  Questions? Contact the owner at <a href="mailto:{SUPPORT_EMAIL}" style="color:{_C_SEA}">{SUPPORT_EMAIL}</a>
+</p>"""
+
+    html = _shell(
+        IMG_HERO_CARETAKER,
+        f'linear-gradient(160deg,{pcolor}28 0%,{_C_OCEAN}cc 100%)',
+        f'New {plabel} Reservation',
+        f'{guest} &nbsp;·&nbsp; {checkin} &#8594; {checkout}',
+        f'{nights} night{"s" if nights != 1 else ""} &nbsp;·&nbsp; Unit 1408 &nbsp;·&nbsp; 14th Floor',
+        body,
+    )
+
+    return _send(
+        caretaker_email,
+        f'New reservation: {checkin} → {checkout} ({nights}n) · {plabel}',
+        html,
+        f'New {plabel} reservation: {guest}, {checkin} → {checkout} ({nights} nights). Clean by 3 PM on {checkout}.',
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # PREVIEW helpers (return raw HTML, no send)
 # ════════════════════════════════════════════════════════════════════════════
 def preview_booking_confirmation() -> str:
