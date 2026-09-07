@@ -1452,13 +1452,13 @@ def caretaker_reservations(_:None=Depends(_require_caretaker),db:Session=Depends
         try: n=(date.fromisoformat(r.checkout)-date.fromisoformat(r.checkin)).days
         except: n=0
         result.append({'key':f'ota-{r.id}','platform':r.platform,'checkin':r.checkin,'checkout':r.checkout,
-                       'guest_name':r.guest_name or 'Guest','nights':n,'is_new':r.is_new})
+                       'guest_name':r.guest_name or 'Guest','nights':n,'is_new':r.is_new,'guests':None})
     for b in direct:
         try: n=(date.fromisoformat(b.checkout)-date.fromisoformat(b.checkin)).days
         except: n=0
         is_new=(b.created_at>cutoff)
         result.append({'key':f'direct-{b.id}','platform':'direct','checkin':b.checkin,'checkout':b.checkout,
-                       'guest_name':b.guest_name or 'Guest','nights':n,'is_new':is_new})
+                       'guest_name':b.guest_name or 'Guest','nights':n,'is_new':is_new,'guests':b.guests})
     result.sort(key=lambda x:x['checkin'])
     return result
 
