@@ -63,6 +63,29 @@ function TestEmailButton({ token }: { token: string }) {
   );
 }
 
+function TestCaretakerEmailButton({ token }: { token: string }) {
+  const [status, setStatus] = useState<'idle'|'sending'|'ok'|'err'>('idle');
+  const [msg, setMsg] = useState('');
+  const send = async () => {
+    setStatus('sending');
+    try {
+      const r = await api<any>('/api/admin/test-caretaker-email', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      setMsg(r.message || 'Sent!'); setStatus('ok');
+    } catch (e: any) {
+      setMsg(e?.message || 'Failed — check caretaker emails are registered'); setStatus('err');
+    }
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <button className="btn light" onClick={send} disabled={status === 'sending'} style={{ minWidth: 200 }}>
+        {status === 'sending' ? 'Sending…' : '🏠 Send test caretaker email'}
+      </button>
+      {status === 'ok' && <span style={{ color: '#28704e', fontWeight: 700 }}>✓ {msg}</span>}
+      {status === 'err' && <span style={{ color: '#a74840', fontWeight: 700 }}>✕ {msg}</span>}
+    </div>
+  );
+}
+
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className="admin-card"><h2>{title}</h2>{children}</div>;
 }
@@ -992,6 +1015,13 @@ export default function Admin() {
               Send a test email (booking confirmation template) to your SMTP address to verify everything is working.
             </p>
             <TestEmailButton token={token} />
+          </SectionCard>
+
+          <SectionCard title="Caretaker Notifications">
+            <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: 14 }}>
+              Send a sample reservation alert to all registered caretakers and the <code>CARETAKER_EMAIL</code> env var to verify the template looks correct.
+            </p>
+            <TestCaretakerEmailButton token={token} />
           </SectionCard>
 
           <SectionCard title="Email Template Previews">

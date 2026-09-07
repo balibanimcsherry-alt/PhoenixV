@@ -699,6 +699,23 @@ def admin_test_email(_:None=Depends(require_admin)):
     except Exception as e:
         raise HTTPException(500, f'SMTP error: {type(e).__name__}: {e} | Config: {cfg}')
 
+@app.post('/api/admin/test-caretaker-email')
+def admin_test_caretaker_email(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    sample = {
+        'platform':'airbnb','guest_name':'Sarah & Michael','checkin':'2025-09-12',
+        'checkout':'2025-09-19','guests':4,
+    }
+    emails = [a.email for a in db.query(CaretakerAccount).all() if a.email]
+    if settings.caretaker_email and settings.caretaker_email not in emails:
+        emails.append(settings.caretaker_email)
+    if not emails:
+        raise HTTPException(400,'No caretaker emails registered. Add CARETAKER_EMAIL env var or register a caretaker account.')
+    sent, failed = [], []
+    for email in emails:
+        ok = send_caretaker_notification(sample, email)
+        (sent if ok else failed).append(email)
+    return {'ok':True,'sent':sent,'failed':failed,'message':f'Sent to {len(sent)} caretaker(s)'}
+
 from fastapi.responses import HTMLResponse
 
 def _require_admin_flex(authorization:str|None=Header(default=None), token:str|None=Query(default=None)):
