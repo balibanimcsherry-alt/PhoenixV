@@ -497,6 +497,7 @@ export default function Admin() {
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [tab, setTab] = useState('overview');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [settings, setSettings] = useState(defaults);
   const [saved, setSaved] = useState('');
   const [chats, setChats] = useState<any[]>([]);
@@ -567,14 +568,68 @@ export default function Admin() {
 
   const tabs = ['overview', 'calendar', 'pms', 'tasks', 'financials', 'pricing', 'screenshot', 'property', 'reviews', 'messages', 'analytics', 'bookings', 'payments', 'customers', 'chat', 'marketing', 'settings'];
 
+  const tabLabel = (t: string) =>
+    t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t === 'screenshot' ? 'Import Data'
+    : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1);
+
+  const TAB_ICONS: Record<string, string> = {
+    overview:'🏠', calendar:'📅', pms:'🔄', tasks:'✅', financials:'💰', pricing:'🏷️',
+    screenshot:'📥', property:'🏡', reviews:'⭐', messages:'💬', analytics:'📊',
+    bookings:'📋', payments:'💳', customers:'👥', chat:'🗨️', marketing:'📣', settings:'⚙️',
+  };
+
+  const selectTab = (t: string) => { setTab(t); setMobileNavOpen(false); };
+
   return (
     <main className="admin-page">
+
+      {/* ── Mobile top bar ── */}
+      <div className="admin-mobile-bar">
+        <span style={{ fontWeight: 700, color: '#fff', fontSize: 15 }}>
+          {TAB_ICONS[tab]} {tabLabel(tab)}
+        </span>
+        <button onClick={() => setMobileNavOpen(o => !o)} className="admin-hamburger">
+          <span /><span /><span />
+        </button>
+      </div>
+
+      {/* ── Mobile nav drawer ── */}
+      {mobileNavOpen && (
+        <div className="admin-drawer-backdrop" onClick={() => setMobileNavOpen(false)}>
+          <div className="admin-drawer" onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.15)' }}>
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>Owner Dashboard</span>
+              <button onClick={() => setMobileNavOpen(false)} style={{ background: 'none', border: 0, color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1, padding: '8px 12px' }}>
+              {tabs.map(t => (
+                <button key={t} onClick={() => selectTab(t)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '13px 14px',
+                    borderRadius: 10, border: 0, marginBottom: 4, cursor: 'pointer', textAlign: 'left',
+                    background: tab === t ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.06)',
+                    color: '#fff', fontSize: 15, fontWeight: tab === t ? 700 : 400 }}>
+                  <span style={{ fontSize: 18, width: 24, textAlign: 'center' }}>{TAB_ICONS[t]}</span>
+                  {tabLabel(t)}
+                </button>
+              ))}
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,.15)' }}>
+              <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); setMobileNavOpen(false); }}
+                style={{ width: '100%', padding: '12px', borderRadius: 10, border: 0, background: 'rgba(200,60,60,.55)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Desktop sidebar ── */}
       <div className="admin-side">
         <img src="/logo.svg" />
         <h3>Owner Dashboard</h3>
         {tabs.map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? 'rgba(255,255,255,.28)' : 'rgba(255,255,255,.07)' }}>
-            {t === 'pms' ? 'PMS' : t === 'financials' ? 'Financials' : t === 'screenshot' ? 'Import Data' : t.replace(/_/g,' ').charAt(0).toUpperCase() + t.replace(/_/g,' ').slice(1)}
+            {tabLabel(t)}
           </button>
         ))}
         <button onClick={() => { localStorage.removeItem('adminToken'); setToken(''); }} style={{ marginTop: 'auto', background: 'rgba(200,60,60,.55)', borderRadius: 8, fontWeight: 600 }}>
