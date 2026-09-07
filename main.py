@@ -1003,13 +1003,19 @@ async def ai_chat(payload:AIChatIn):
 # ── PMS ─────────────────────────────────────────────────────────────────────
 async def _pms_sync_loop():
     await asyncio.sleep(10)  # let DB settle on startup
+    # First run: bulk-load existing reservations, no caretaker notifications
+    try:
+        db = next(get_db())
+        try: await _do_pms_sync(db, notify=False)
+        finally: db.close()
+    except Exception as e: print(f'PMS startup sync error: {e}')
     while True:
+        await asyncio.sleep(6 * 3600)  # every 6 hours
         try:
             db = next(get_db())
-            try: await _do_pms_sync(db)
+            try: await _do_pms_sync(db, notify=True)
             finally: db.close()
         except Exception as e: print(f'PMS auto-sync error: {e}')
-        await asyncio.sleep(6 * 3600)  # every 6 hours
 
 def _consolidate_daily_blocks(events: list[dict]) -> list[dict]:
     """Merge consecutive 1-day blocks (common VRBO iCal format) into multi-night stays."""
@@ -1037,7 +1043,7 @@ def _consolidate_daily_blocks(events: list[dict]) -> list[dict]:
         merged.append(dict(ev))
     return merged
 
-async def _do_pms_sync(db: Session) -> int:
+async def _do_pms_sync(db: Session, notify: bool = True) -> int:
     platforms = [
         ('airbnb', settings.airbnb_ical_url),
         ('vrbo',   settings.vrbo_ical_url),
@@ -1089,8 +1095,9 @@ async def _do_pms_sync(db: Session) -> int:
                 total_new+=1
                 new_for_notify.append({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co,'guests':None})
         db.commit()
-        for res_data in new_for_notify:
-            _notify_caretakers(db, res_data)
+        if notify:
+            for res_data in new_for_notify:
+                _notify_caretakers(db, res_data)
     _dedup_ical_reservations(db)
     return total_new
 
