@@ -14,6 +14,7 @@ interface Quote {
   subtotal: number; cleaning_fee: number; taxes: number;
   security_deposit: number; direct_discount: number; discount_percent: number;
   total: number; currency: string; booking_mode: string; source: string;
+  price_override?: boolean; price_override_label?: string;
 }
 
 interface BookingDetail {
@@ -374,11 +375,20 @@ export default function Book() {
                 </div>
 
                 <div className="price-lines">
-                  <div><span>{fmt(quote.direct_nightly)} × {quote.nights} nights</span><span>${quote.subtotal.toFixed(2)}</span></div>
-                  {quote.direct_discount > 0 && <div className="discount"><span>Direct-booking savings vs Airbnb</span><span>−${quote.direct_discount.toFixed(2)}</span></div>}
-                  <div><span>Cleaning fee</span><span>${quote.cleaning_fee.toFixed(2)}</span></div>
-                  <div><span>Taxes</span><span>${quote.taxes.toFixed(2)}</span></div>
-                  {quote.security_deposit > 0 && <div><span>Security authorization</span><span>${quote.security_deposit.toFixed(2)}</span></div>}
+                  {quote.price_override ? (
+                    <>
+                      <div><span>{fmt(quote.direct_nightly)} × {quote.nights} nights</span><span>${quote.subtotal.toFixed(2)}</span></div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', padding: '2px 0' }}><span>{quote.price_override_label}</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <div><span>{fmt(quote.direct_nightly)} × {quote.nights} nights</span><span>${quote.subtotal.toFixed(2)}</span></div>
+                      {quote.direct_discount > 0 && <div className="discount"><span>Direct-booking savings vs Airbnb</span><span>−${quote.direct_discount.toFixed(2)}</span></div>}
+                      <div><span>Cleaning fee</span><span>${quote.cleaning_fee.toFixed(2)}</span></div>
+                      <div><span>Taxes</span><span>${quote.taxes.toFixed(2)}</span></div>
+                      {quote.security_deposit > 0 && <div><span>Security authorization</span><span>${quote.security_deposit.toFixed(2)}</span></div>}
+                    </>
+                  )}
                   <div className="total"><span>Total</span><span>${quote.total.toFixed(2)} {quote.currency}</span></div>
                 </div>
 

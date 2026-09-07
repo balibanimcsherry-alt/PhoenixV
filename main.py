@@ -12,8 +12,8 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock, CaretakerAccount
-from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock, CaretakerAccount, PriceOverride
+from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin, PriceOverrideIn
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
 from integrations import airbnb_available, pricelabs_nightly_rate, sync_platform_ical, _extract_guest_info, _is_cross_calendar_block, _BLOCK_SUMMARIES
@@ -492,6 +492,20 @@ def delete_block(block_id:int,_:None=Depends(require_admin),db:Session=Depends(g
     if not b: raise HTTPException(404,'Block not found')
     db.delete(b);db.commit();return {'ok':True}
 
+@app.get('/api/admin/price-overrides')
+def list_price_overrides(_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    return [{'id':o.id,'checkin':o.checkin,'checkout':o.checkout,'total_override':o.total_override,'label':o.label,'created_at':o.created_at.isoformat()} for o in db.query(PriceOverride).order_by(PriceOverride.checkin).all()]
+@app.post('/api/admin/price-overrides',status_code=201)
+def create_price_override(body:PriceOverrideIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    o=PriceOverride(checkin=body.checkin,checkout=body.checkout,total_override=body.total_override,label=body.label)
+    db.add(o);db.commit();db.refresh(o)
+    return {'id':o.id,'checkin':o.checkin,'checkout':o.checkout,'total_override':o.total_override,'label':o.label}
+@app.delete('/api/admin/price-overrides/{oid}')
+def delete_price_override(oid:int,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    o=db.get(PriceOverride,oid)
+    if not o: raise HTTPException(404,'Override not found')
+    db.delete(o);db.commit();return {'ok':True}
+
 @app.get('/api/booking/quote')
 async def quote(checkin:str,checkout:str,guests:int=4,db:Session=Depends(get_db)):
     try: ci=date.fromisoformat(checkin); co=date.fromisoformat(checkout)
@@ -514,6 +528,32 @@ async def quote(checkin:str,checkout:str,guests:int=4,db:Session=Depends(get_db)
     taxes=taxable*(s.tax_percent/100)
     total=taxable+taxes
     security=round(total*0.20,2) if s.security_mode=='authorization' else 0
+    # Check for admin price override (exact date match)
+    override=db.query(PriceOverride).filter(PriceOverride.checkin==checkin,PriceOverride.checkout==checkout).first()
+    if override:
+        ot=override.total_override
+        airbnb_taxable=gross+s.cleaning_fee
+        airbnb_total_est=airbnb_taxable*(1+s.tax_percent/100)
+        return {
+            'available':available,'nights':nights,
+            'airbnb_nightly':round(nightly,2),
+            'airbnb_subtotal':round(gross,2),
+            'airbnb_total_est':round(airbnb_total_est,2),
+            'direct_nightly':round(ot/nights,2),
+            'nightly_rate':round(ot/nights,2),
+            'subtotal':round(ot,2),
+            'cleaning_fee':0,
+            'taxes':0,
+            'security_deposit':0,
+            'direct_discount':0,
+            'discount_percent':0,
+            'total':round(ot,2),
+            'currency':'USD',
+            'booking_mode':'instant' if s.instant_booking else 'approval',
+            'source':f'{pricing_source}; {availability_source}',
+            'price_override':True,
+            'price_override_label':override.label or 'Special rate — all fees and taxes included'
+        }
     # Airbnb comparison (same cleaning fee + taxes applied to their higher base)
     airbnb_taxable=gross+s.cleaning_fee
     airbnb_total_est=airbnb_taxable*(1+s.tax_percent/100)
@@ -698,6 +738,20 @@ def admin_test_email(_:None=Depends(require_admin)):
         return {'ok': True, 'message': f'Sent beautiful template to {settings.smtp_user}', 'config': cfg}
     except Exception as e:
         raise HTTPException(500, f'SMTP error: {type(e).__name__}: {e} | Config: {cfg}')
+
+@app.post('/api/admin/test-stripe')
+def admin_test_stripe(_:None=Depends(require_admin)):
+    if not settings.active_stripe_secret_key:
+        raise HTTPException(503,'Stripe keys not configured — set STRIPE_SECRET_KEY in env vars')
+    stripe.api_key=settings.active_stripe_secret_key
+    try:
+        pi=stripe.PaymentIntent.create(amount=100,currency='usd',payment_method_types=['card'])
+        stripe.PaymentIntent.cancel(pi.id)
+        return {'ok':True,'mode':settings.stripe_mode,'message':f'Stripe connected ({settings.stripe_mode} mode) — payments ready'}
+    except stripe.error.AuthenticationError:
+        raise HTTPException(401,'Stripe authentication failed — check your API key in env vars')
+    except stripe.error.StripeError as e:
+        raise HTTPException(502,f'Stripe error: {str(e)}')
 
 @app.post('/api/admin/test-caretaker-email')
 def admin_test_caretaker_email(_:None=Depends(require_admin),db:Session=Depends(get_db)):

@@ -90,6 +90,84 @@ function SectionCard({ title, children }: { title: string; children: React.React
   return <div className="admin-card"><h2>{title}</h2>{children}</div>;
 }
 
+function TestStripeButton({ token }: { token: string }) {
+  const [status, setStatus] = useState<'idle'|'checking'|'ok'|'err'>('idle');
+  const [msg, setMsg] = useState('');
+  const check = async () => {
+    setStatus('checking');
+    try {
+      const r = await api<any>('/api/admin/test-stripe', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      setMsg(r.message || 'Connected!'); setStatus('ok');
+    } catch (e: any) {
+      setMsg(e?.message || 'Failed — check Stripe keys in env vars'); setStatus('err');
+    }
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <button className="btn light" onClick={check} disabled={status === 'checking'} style={{ minWidth: 180 }}>
+        {status === 'checking' ? 'Checking…' : '💳 Test Stripe connection'}
+      </button>
+      {status === 'ok' && <span style={{ color: '#28704e', fontWeight: 700 }}>✓ {msg}</span>}
+      {status === 'err' && <span style={{ color: '#a74840', fontWeight: 700 }}>✕ {msg}</span>}
+    </div>
+  );
+}
+
+type PriceOverride = { id: number; checkin: string; checkout: string; total_override: number; label: string };
+function PriceOverridesCard({ token }: { token: string }) {
+  const [overrides, setOverrides] = useState<PriceOverride[]>([]);
+  const [form, setForm] = useState({ checkin: '', checkout: '', total_override: '', label: '' });
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const headers = () => ({ Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' });
+  const load = async () => {
+    try { setOverrides(await api<PriceOverride[]>('/api/admin/price-overrides', { headers: headers() })); } catch {}
+  };
+  useEffect(() => { load(); }, []);
+  const add = async () => {
+    if (!form.checkin || !form.checkout || !form.total_override) { setMsg('Fill in all required fields'); return; }
+    setSaving(true); setMsg('');
+    try {
+      await api('/api/admin/price-overrides', { method: 'POST', headers: headers(), body: JSON.stringify({ checkin: form.checkin, checkout: form.checkout, total_override: parseFloat(form.total_override), label: form.label }) });
+      setForm({ checkin: '', checkout: '', total_override: '', label: '' });
+      setMsg('Override saved'); await load();
+    } catch (e: any) { setMsg(e?.message || 'Save failed'); }
+    setSaving(false);
+  };
+  const remove = async (id: number) => {
+    try { await api(`/api/admin/price-overrides/${id}`, { method: 'DELETE', headers: headers() }); await load(); } catch {}
+  };
+  return (
+    <SectionCard title="Price Overrides">
+      <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: 14 }}>
+        Set an exact all-in total for specific date ranges — overrides the normal pricing calculation. Guest sees and pays exactly this amount (cleaning &amp; taxes included).
+      </p>
+      {overrides.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {overrides.map(o => (
+            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 700, minWidth: 90 }}>${o.total_override.toFixed(0)}</span>
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>{o.checkin} → {o.checkout}</span>
+              {o.label && <span style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic' }}>{o.label}</span>}
+              <button className="btn light" style={{ marginLeft: 'auto', padding: '2px 10px', fontSize: 12 }} onClick={() => remove(o.id)}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="two" style={{ marginBottom: 10 }}>
+        <label>Check-in<input type="date" value={form.checkin} onChange={e => setForm({ ...form, checkin: e.target.value })} /></label>
+        <label>Check-out<input type="date" value={form.checkout} onChange={e => setForm({ ...form, checkout: e.target.value })} /></label>
+      </div>
+      <div className="two" style={{ marginBottom: 10 }}>
+        <label>All-in total ($)<input type="number" placeholder="2700" value={form.total_override} onChange={e => setForm({ ...form, total_override: e.target.value })} /></label>
+        <label>Label (optional)<input placeholder="e.g. First guest special" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} /></label>
+      </div>
+      <button className="btn" onClick={add} disabled={saving}>{saving ? 'Saving…' : 'Add override'}</button>
+      {msg && <span style={{ marginLeft: 12, color: msg.includes('saved') ? '#28704e' : '#a74840', fontWeight: 700 }}>{msg}</span>}
+    </SectionCard>
+  );
+}
+
 function SendConfirmBtn({dbId, headers, onSent}: {dbId: number; headers: ()=>Record<string,string>; onSent: ()=>void}) {
   const [state, setState] = React.useState<'idle'|'sending'|'done'|'err'>('idle');
   if (state === 'done') return <span style={{color:'#28704e',fontWeight:700,fontSize:12}}>✓ Sent</span>;
@@ -1064,6 +1142,15 @@ export default function Admin() {
           </SectionCard>
           <button className="btn" onClick={save}>Save settings</button>
           {saved && <span className="saved" style={{ marginLeft: 12 }}>{saved}</span>}
+
+          <PriceOverridesCard token={token} />
+
+          <SectionCard title="Payment">
+            <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: 14 }}>
+              Verify Stripe is connected and payments will process correctly before your guest books.
+            </p>
+            <TestStripeButton token={token} />
+          </SectionCard>
 
           <SectionCard title="Email">
             <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: 14 }}>
