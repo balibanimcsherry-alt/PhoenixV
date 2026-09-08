@@ -1265,6 +1265,22 @@ def pms_notes(res_id:int,payload:_NotesIn,_:None=Depends(require_admin),db:Sessi
     r.notes=payload.notes; db.commit()
     return {'ok':True}
 
+class _DatesIn(BaseModel): checkin:str; checkout:str
+
+@app.patch('/api/pms/reservations/{res_id}/dates')
+def pms_move_dates(res_id:int,payload:_DatesIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    r=db.get(IcalReservation,res_id)
+    if not r: raise HTTPException(404,'Not found')
+    r.checkin=payload.checkin; r.checkout=payload.checkout; db.commit()
+    return {'ok':True}
+
+@app.patch('/api/admin/bookings/{booking_id}/dates')
+def booking_move_dates(booking_id:int,payload:_DatesIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    b=db.get(BookingRequest,booking_id)
+    if not b: raise HTTPException(404,'Booking not found')
+    b.checkin=payload.checkin; b.checkout=payload.checkout; db.commit()
+    return {'ok':True}
+
 class _GuestInfoIn(BaseModel):
     guest_name:str=''; guest_phone:str=''; guest_email:str=''; platform:str=''
 

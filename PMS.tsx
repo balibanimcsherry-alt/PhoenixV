@@ -57,6 +57,9 @@ export function PMSTab({ token }: { token: string }) {
   const [blockForm, setBlockForm] = useState({ checkin: '', checkout: '', reason: '' });
   const [blockSaving, setBlockSaving] = useState(false);
   const [blockError, setBlockError] = useState('');
+  const [moveDates, setMoveDates] = useState({ checkin: '', checkout: '' });
+  const [moveSaving, setMoveSaving] = useState(false);
+  const [moveError, setMoveError] = useState('');
   const headers = { Authorization: `Bearer ${token}` };
 
   const load = async () => {
@@ -219,7 +222,7 @@ export function PMSTab({ token }: { token: string }) {
               {data.ota.length === 0 && <><br /><small style={{ display: 'block', marginTop: 8 }}>Click "Sync OTA Calendars" to fetch from Airbnb/VRBO/Booking.com.</small></>}
             </div>
           ) : filtered.map(r => (
-            <div key={r.key} onClick={() => { setSelected(selected === r.key ? null : r.key); setNoteText(r.ota?.notes || ''); }}
+            <div key={r.key} onClick={() => { setSelected(selected === r.key ? null : r.key); setNoteText(r.ota?.notes || ''); setMoveDates({ checkin: r.checkin, checkout: r.checkout }); setMoveError(''); }}
               style={{
                 border: selected === r.key ? `2px solid ${PC[r.platform]}` : '1px solid #e8efed',
                 borderRadius: 10, padding: 14, marginBottom: 10, cursor: 'pointer',
@@ -253,6 +256,40 @@ export function PMSTab({ token }: { token: string }) {
             <div style={{ fontSize: 14, marginBottom: 8 }}><strong>Check-in:</strong> {sel.checkin}</div>
             <div style={{ fontSize: 14, marginBottom: 8 }}><strong>Check-out:</strong> {sel.checkout}</div>
             <div style={{ fontSize: 14, marginBottom: 16 }}><strong>Nights:</strong> {sel.nights}</div>
+
+            <div style={{ background: '#f5f9ff', border: '1px solid #c8ddf5', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#3a6ea8', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Move dates</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>New check-in</div>
+                  <input type="date" value={moveDates.checkin} onChange={e => setMoveDates(d => ({ ...d, checkin: e.target.value }))}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #c8ddf5', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>New check-out</div>
+                  <input type="date" value={moveDates.checkout} onChange={e => setMoveDates(d => ({ ...d, checkout: e.target.value }))}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: 6, border: '1px solid #c8ddf5', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              {moveError && <div style={{ color: '#a74840', fontSize: 12, marginBottom: 6 }}>{moveError}</div>}
+              <button disabled={moveSaving || !moveDates.checkin || !moveDates.checkout || (moveDates.checkin === sel.checkin && moveDates.checkout === sel.checkout)}
+                onClick={async () => {
+                  setMoveSaving(true); setMoveError('');
+                  try {
+                    if (sel.ota) {
+                      await api(`/api/pms/reservations/${sel.ota.id}/dates`, { method: 'PATCH', headers, body: JSON.stringify(moveDates) });
+                    } else if (sel.direct) {
+                      await api(`/api/admin/bookings/${sel.direct.id}/dates`, { method: 'PATCH', headers, body: JSON.stringify(moveDates) });
+                    }
+                    await load();
+                    setSelected(null);
+                  } catch (e: any) { setMoveError(e?.message || 'Failed to move reservation'); }
+                  setMoveSaving(false);
+                }}
+                style={{ padding: '6px 16px', borderRadius: 6, background: '#3a6ea8', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: moveSaving ? 0.7 : 1 }}>
+                {moveSaving ? 'Saving…' : 'Save new dates'}
+              </button>
+            </div>
 
             {sel.direct && (
               <div style={{ background: '#f8fbfb', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13 }}>
