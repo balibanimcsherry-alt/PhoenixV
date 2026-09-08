@@ -396,12 +396,20 @@ async def blocked_dates(db:Session=Depends(get_db)):
             ci=date.fromisoformat(blk.checkin); co=date.fromisoformat(blk.checkout)
         except Exception: continue
         if co>today_dt: result.append({'start':str(ci),'end':str(co)})
+    for b in db.query(BookingRequest).filter(BookingRequest.status!='cancelled').all():
+        try:
+            ci=date.fromisoformat(b.checkin); co=date.fromisoformat(b.checkout)
+        except Exception: continue
+        if co>today_dt: result.append({'start':str(ci),'end':str(co)})
+    for r in db.query(IcalReservation).all():
+        try:
+            ci=date.fromisoformat(r.checkin); co=date.fromisoformat(r.checkout)
+        except Exception: continue
+        if co>today_dt: result.append({'start':str(ci),'end':str(co)})
     return {'blocked':result,'source':'combined'}
 
 def _build_calendar_ics(db: Session) -> str:
-    bookings = db.query(BookingRequest).filter(
-        BookingRequest.status.in_(['confirmed','payment_pending','pending_approval'])
-    ).all()
+    bookings = db.query(BookingRequest).filter(BookingRequest.status!='cancelled').all()
     lines = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
