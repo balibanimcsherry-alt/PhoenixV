@@ -1201,7 +1201,7 @@ async def pms_sync(_:None=Depends(require_admin),db:Session=Depends(get_db)):
 def pms_reservations(_:None=Depends(require_admin),db:Session=Depends(get_db),all:bool=False):
     today_s=date.today().isoformat()
     ota_q=db.query(IcalReservation)
-    direct_q=db.query(BookingRequest).filter(BookingRequest.status.in_(['confirmed','payment_pending','pending_approval']))
+    direct_q=db.query(BookingRequest).filter(BookingRequest.status!='cancelled')
     if not all:
         ota_q=ota_q.filter(IcalReservation.checkout>=today_s)
         direct_q=direct_q.filter(BookingRequest.checkout>=today_s)
@@ -1523,7 +1523,7 @@ def caretaker_reservations(_:None=Depends(_require_caretaker),db:Session=Depends
     today_s=date.today().isoformat()
     cutoff=(datetime.utcnow()-timedelta(hours=48))
     ota=db.query(IcalReservation).filter(IcalReservation.checkout>=today_s).order_by(IcalReservation.checkin).all()
-    direct=db.query(BookingRequest).filter(BookingRequest.checkout>=today_s,BookingRequest.status.in_(['confirmed','payment_pending','pending_approval'])).order_by(BookingRequest.checkin).all()
+    direct=db.query(BookingRequest).filter(BookingRequest.checkout>=today_s,BookingRequest.status!='cancelled').order_by(BookingRequest.checkin).all()
     result=[]
     for r in ota:
         try: n=(date.fromisoformat(r.checkout)-date.fromisoformat(r.checkin)).days
