@@ -796,6 +796,17 @@ def preview_email(template:str, _:None=Depends(_require_admin_flex)):
 
 class _StatusIn(BaseModel): status:str
 
+class _ManualBookingIn(BaseModel):
+    checkin:str; checkout:str; guests:int=1; guest_name:str=''; email:str=''; phone:str=''; address:str=''; total:float=0; status:str='confirmed'; notes:str=''
+
+@app.post('/api/admin/bookings/manual', status_code=201)
+def create_manual_booking(payload:_ManualBookingIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    b=BookingRequest(checkin=payload.checkin,checkout=payload.checkout,guests=payload.guests,
+        guest_name=payload.guest_name,email=payload.email,phone=payload.phone,
+        address=payload.address,total=payload.total,status=payload.status,email_sent=bool(payload.email))
+    db.add(b);db.commit();db.refresh(b)
+    return {'ok':True,'id':b.id,'checkin':b.checkin,'checkout':b.checkout,'status':b.status}
+
 @app.patch('/api/admin/bookings/{booking_id}/status')
 def update_booking_status(booking_id:int,payload:_StatusIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
     b=db.get(BookingRequest,booking_id)
