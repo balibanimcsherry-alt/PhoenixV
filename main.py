@@ -1292,6 +1292,22 @@ def booking_move_dates(booking_id:int,payload:_DatesIn,_:None=Depends(require_ad
     b.checkin=payload.checkin; b.checkout=payload.checkout; db.commit()
     return {'ok':True}
 
+class _BookingGuestIn(BaseModel):
+    guest_name:str=''; email:str=''; phone:str=''; address:str=''; guests:int=0; total:float=0
+
+@app.patch('/api/admin/bookings/{booking_id}/guest')
+def update_booking_guest(booking_id:int,payload:_BookingGuestIn,_:None=Depends(require_admin),db:Session=Depends(get_db)):
+    b=db.get(BookingRequest,booking_id)
+    if not b: raise HTTPException(404,'Booking not found')
+    if payload.guest_name: b.guest_name=payload.guest_name
+    if payload.email: b.email=payload.email
+    if payload.phone: b.phone=payload.phone
+    if payload.address: b.address=payload.address
+    if payload.guests: b.guests=payload.guests
+    if payload.total: b.total=payload.total
+    db.commit()
+    return {'ok':True}
+
 class _GuestInfoIn(BaseModel):
     guest_name:str=''; guest_phone:str=''; guest_email:str=''; platform:str=''
 
