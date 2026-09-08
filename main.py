@@ -1730,6 +1730,22 @@ def _markup_meta(db: Session) -> dict:
     s = get_settings(db)
     return {'airbnb_markup_percent': s.airbnb_markup_percent, 'vrbo_markup_percent': s.vrbo_markup_percent, 'booking_markup_percent': s.booking_markup_percent}
 
+def _booked_dates_set(db: Session, start: str, end: str) -> set:
+    """Return set of date strings that are covered by a local reservation."""
+    booked: set = set()
+    ical = db.query(IcalReservation).filter(IcalReservation.checkin<=end, IcalReservation.checkout>start).all()
+    direct = db.query(BookingRequest).filter(BookingRequest.checkin<=end, BookingRequest.checkout>start, BookingRequest.status!='cancelled').all()
+    for r in ical + direct:
+        try:
+            ci = date.fromisoformat(r.checkin); co = date.fromisoformat(r.checkout)
+        except: continue
+        d = ci
+        while d < co:
+            ds = d.isoformat()
+            if start <= ds <= end: booked.add(ds)
+            d = date.fromordinal(d.toordinal() + 1)
+    return booked
+
 @app.get('/api/admin/pricing')
 async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:Session=Depends(get_db)):
     import calendar as _cal
@@ -1738,9 +1754,10 @@ async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:
     _,days=_cal.monthrange(year,month)
     start=f'{year}-{month:02d}-01'; end=f'{year}-{month:02d}-{days:02d}'
     markups=_markup_meta(db)
+    booked=_booked_dates_set(db,start,end)
     cached=db.query(DailyPrice).filter(DailyPrice.date>=start,DailyPrice.date<=end).all()
     if cached:
-        daily=[{'date':p.date,'price':p.price,'min_stay':p.min_stay,'demand_color':p.demand_color,'occupancy':p.occupancy} for p in cached]
+        daily=[{'date':p.date,'price':p.price,'min_stay':p.min_stay,'demand_color':p.demand_color,'occupancy':1 if p.date in booked else 0} for p in cached]
         return {'daily':daily,'year':year,'month':month,**markups}
     if not settings.pricelabs_api_key or not settings.pricelabs_listing_id:
         return {'daily':[],'error':'PriceLabs not configured — add PRICELABS_API_KEY and PRICELABS_LISTING_ID on Render',**markups}
@@ -1755,6 +1772,7 @@ async def admin_pricing(_:None=Depends(require_admin),year:int=0,month:int=0,db:
         if r.status_code>=400: return {'daily':[],'error':f'PriceLabs API error ({r.status_code}) — click Sync Now to retry',**markups}
         results=r.json()
         daily=(results[0].get('data') or []) if isinstance(results,list) and results else []
+        daily=[{**d,'occupancy':1 if d.get('date') in booked else d.get('occupancy',0)} for d in daily]
         return {'daily':daily,'year':year,'month':month,**markups}
 
 @app.get('/api/pricing/calendar')
