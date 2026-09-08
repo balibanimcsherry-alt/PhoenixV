@@ -34,12 +34,19 @@ export function PricingTab({ token }: { token: string }) {
   const [syncStatus, setSyncStatus] = useState<{ last_synced: string | null; cached_days: number } | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState<'calendar' | 'platform'>('calendar');
+  const [overrides, setOverrides] = useState<any[]>([]);
+  const [overrideForm, setOverrideForm] = useState({ checkin: '', checkout: '', total_override: '', label: '' });
+  const [overrideSaving, setOverrideSaving] = useState(false);
+  const [overrideMsg, setOverrideMsg] = useState('');
   const h = { Authorization: `Bearer ${token}` };
 
   const loadSyncStatus = () =>
     api<any>('/api/admin/pricing/sync-status', { headers: h }).then(setSyncStatus).catch(() => {});
 
-  useEffect(() => { loadSyncStatus(); }, [token]);
+  const loadOverrides = () =>
+    api<any[]>('/api/admin/price-overrides', { headers: h }).then(setOverrides).catch(() => {});
+
+  useEffect(() => { loadSyncStatus(); loadOverrides(); }, [token]);
 
   const syncNow = async () => {
     setSyncing(true);
@@ -341,6 +348,65 @@ export function PricingTab({ token }: { token: string }) {
           )}
         </div>
       )}
+      {/* Price Overrides */}
+      <div style={{ marginTop: 36, padding: 20, background: '#f5fff8', border: '1px solid #b8e0c4', borderRadius: 12 }}>
+        <h3 style={{ margin: '0 0 6px', color: '#1a5c33' }}>💲 Price Overrides</h3>
+        <p style={{ fontSize: 13, color: '#4a7a5a', margin: '0 0 16px' }}>
+          Set a fixed all-in total for a date range (overrides nightly rate calculation for direct bookings).
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>Check-in</div>
+            <input type="date" value={overrideForm.checkin} onChange={e => setOverrideForm(f => ({ ...f, checkin: e.target.value }))}
+              style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #b8e0c4', fontSize: 13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>Check-out</div>
+            <input type="date" value={overrideForm.checkout} onChange={e => setOverrideForm(f => ({ ...f, checkout: e.target.value }))}
+              style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #b8e0c4', fontSize: 13 }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>Total ($)</div>
+            <input type="number" value={overrideForm.total_override} onChange={e => setOverrideForm(f => ({ ...f, total_override: e.target.value }))}
+              placeholder="2700" style={{ width: 100, padding: '7px 10px', borderRadius: 6, border: '1px solid #b8e0c4', fontSize: 13 }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 3 }}>Label (optional)</div>
+            <input type="text" value={overrideForm.label} onChange={e => setOverrideForm(f => ({ ...f, label: e.target.value }))}
+              placeholder="e.g. Josiah Hardacre" style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #b8e0c4', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <button disabled={overrideSaving || !overrideForm.checkin || !overrideForm.checkout || !overrideForm.total_override}
+            style={{ background: '#1a5c33', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0 }}
+            onClick={async () => {
+              setOverrideSaving(true); setOverrideMsg('');
+              try {
+                await api('/api/admin/price-overrides', { method: 'POST', headers: h, body: JSON.stringify({ checkin: overrideForm.checkin, checkout: overrideForm.checkout, total_override: parseFloat(overrideForm.total_override), label: overrideForm.label }) });
+                setOverrideForm({ checkin: '', checkout: '', total_override: '', label: '' });
+                setOverrideMsg('✓ Saved');
+                await loadOverrides();
+              } catch (e: any) { setOverrideMsg(e?.message || 'Failed to save'); }
+              setOverrideSaving(false);
+            }}>
+            {overrideSaving ? 'Saving…' : '+ Add Override'}
+          </button>
+        </div>
+        {overrideMsg && <div style={{ fontSize: 13, color: overrideMsg.startsWith('✓') ? '#1a5c33' : '#a74840', marginBottom: 8 }}>{overrideMsg}</div>}
+        {overrides.length === 0
+          ? <div style={{ color: '#aaa', fontSize: 13 }}>No overrides set.</div>
+          : overrides.map(o => (
+            <div key={o.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid #b8e0c4', borderRadius: 8, padding: '10px 14px', marginBottom: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>${o.total_override.toLocaleString()} all-in {o.label ? `· ${o.label}` : ''}</div>
+                <div style={{ fontSize: 13, color: '#777', marginTop: 2 }}>{o.checkin} → {o.checkout}</div>
+              </div>
+              <button onClick={async () => { await api(`/api/admin/price-overrides/${o.id}`, { method: 'DELETE', headers: h }); loadOverrides(); }}
+                style={{ background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '4px 10px', fontSize: 12, color: '#a74840', cursor: 'pointer' }}>
+                Remove
+              </button>
+            </div>
+          ))
+        }
+      </div>
     </div>
   );
 }
