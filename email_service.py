@@ -802,6 +802,26 @@ def send_caretaker_notification(reservation: dict, caretaker_email: str) -> bool
 
     guests_row = f'<tr class="detail-row"><td>Guests</td><td>{guests} guest{"s" if guests != 1 else ""}</td></tr>' if guests else ''
 
+    # Google Calendar one-click links
+    _gcal_base = 'https://www.google.com/calendar/render?action=TEMPLATE'
+    _ci_compact = checkin.replace('-','') if checkin else ''
+    _co_compact = checkout.replace('-','') if checkout else ''
+    try:
+        import datetime as _dt
+        _clean_compact = (_dt.date.fromisoformat(checkout) + _dt.timedelta(days=1)).strftime('%Y%m%d')
+        _next_clean_compact = _clean_compact
+    except:
+        _clean_compact = _co_compact
+        _next_clean_compact = _co_compact
+    _gcal_stay = (f"{_gcal_base}&text={guest.replace(' ','+')}+Stay+(Coastal+Haven)"
+                  f"&dates={_ci_compact}/{_co_compact}"
+                  f"&details=Guest+stay+at+Coastal+Haven+Unit+1408%2C+Phoenix+V%2C+Orange+Beach+AL"
+                  f"&location=Phoenix+V+Unit+1408%2C+Orange+Beach%2C+AL")
+    _gcal_clean = (f"{_gcal_base}&text=Clean+%26+Prep+Coastal+Haven+(checkout+{co_fmt})"
+                   f"&dates={_co_compact}/{_next_clean_compact}"
+                   f"&details=Guest+checkout+by+10+AM.+Clean+and+prep+unit+for+next+guest.+Coastal+Haven+Unit+1408%2C+Phoenix+V."
+                   f"&location=Phoenix+V+Unit+1408%2C+Orange+Beach%2C+AL")
+
     body = f"""
 <p class="greeting">
   A new reservation has been added to the calendar. Here's everything you need to prepare the unit.
@@ -881,6 +901,11 @@ def send_caretaker_notification(reservation: dict, caretaker_email: str) -> bool
 
 <div class="cta">
   <a class="cta-btn" href="{PROPERTY_URL}/cleaner">Open Caretaker Portal</a>
+</div>
+<div style="text-align:center;margin-top:12px;padding:14px 24px;background:#f0f9f0;border-radius:8px;border:1px solid #c3e6cb">
+  <p style="margin:0 0 10px;font-size:13px;color:#2d6a4f;font-weight:700">Add to Google Calendar</p>
+  <a href="{_gcal_stay}" target="_blank" style="display:inline-block;margin:4px 6px;padding:9px 18px;background:#34a853;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">&#128197; Guest Stay</a>
+  <a href="{_gcal_clean}" target="_blank" style="display:inline-block;margin:4px 6px;padding:9px 18px;background:#1a73e8;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">&#129529; Cleaning Day</a>
 </div>
 <p style="text-align:center;font-size:13px;color:#7aabb0;margin-top:18px;line-height:1.7">
   This is an automated notification from Coastal Haven.<br>
