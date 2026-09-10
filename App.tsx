@@ -30,6 +30,7 @@ import BackgroundMusic from './BackgroundMusic';
 import OceanAvatar from './OceanAvatar';
 import GeoGate from './GeoGate';
 import CaretakerDashboard from './CaretakerDashboard';
+import ResetPassword from './ResetPassword';
 import { trackPageView } from './analytics';
 
 function RouteTracker() {
@@ -77,6 +78,7 @@ export default function App() {
       <Route path="/book-direct-orange-beach" element={<BookDirect />} />
       <Route path="/orange-beach-spring-break" element={<SpringBreak />} />
       <Route path="/caretaker" element={<CaretakerDashboard />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </>;

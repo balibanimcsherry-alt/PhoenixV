@@ -110,13 +110,14 @@ function ConfirmationPage({ bookingId }: { bookingId: string }) {
 
 // ── Customer Auth Modal ────────────────────────────────────────
 function AuthModal({ onClose, onAuth }: { onClose: () => void; onAuth: (c: Customer, token: string) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
@@ -136,24 +137,62 @@ function AuthModal({ onClose, onAuth }: { onClose: () => void; onAuth: (c: Custo
     } finally { setLoading(false); }
   };
 
+  const sendReset = async () => {
+    setErr(''); setMsg('');
+    if (!email) { setErr('Please enter your account email.'); return; }
+    setLoading(true);
+    try {
+      const r = await api<{ message: string }>('/api/customer/forgot-password', {
+        method: 'POST', body: JSON.stringify({ email }),
+      });
+      setMsg(r.message || 'If an account exists for that email, a reset link is on its way.');
+    } catch {
+      setErr('Something went wrong. Please try again.');
+    } finally { setLoading(false); }
+  };
+
   return (
     <div className="auth-modal-backdrop" onClick={onClose}>
       <div className="auth-modal" onClick={e => e.stopPropagation()}>
         <div className="auth-modal-tabs">
-          <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Sign in</button>
-          <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>Create account</button>
+          <button className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setErr(''); setMsg(''); }}>Sign in</button>
+          <button className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setErr(''); setMsg(''); }}>Create account</button>
         </div>
-        {mode === 'register' && <label>Full name<input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" /></label>}
-        <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" /></label>
-        {mode === 'register' && <>
-          <label>Phone<input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 555 000 0000" /></label>
-          <label>Home address<AddressInput value={address} onChange={setAddress} /></label>
-        </>}
-        <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} /></label>
-        {err && <p className="error">{err}</p>}
-        <button className="btn wide" onClick={submit} disabled={loading}>
-          {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
-        </button>
+        {mode === 'forgot' ? (
+          <>
+            <p style={{ fontSize: 14, color: '#555', margin: '4px 0 12px', lineHeight: 1.5 }}>
+              Enter your account email and we'll send you a link to reset your password.
+            </p>
+            <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" onKeyDown={e => e.key === 'Enter' && sendReset()} /></label>
+            {err && <p className="error">{err}</p>}
+            {msg && <p style={{ color: '#28704e', fontSize: 14, fontWeight: 600 }}>{msg}</p>}
+            <button className="btn wide" onClick={sendReset} disabled={loading}>
+              {loading ? 'Sending…' : 'Send reset link'}
+            </button>
+            <p style={{ textAlign: 'center', margin: '12px 0 0' }}>
+              <button className="link-btn" onClick={() => { setMode('login'); setErr(''); setMsg(''); }}>Back to sign in</button>
+            </p>
+          </>
+        ) : (
+          <>
+            {mode === 'register' && <label>Full name<input value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" /></label>}
+            <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" /></label>
+            {mode === 'register' && <>
+              <label>Phone<input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 555 000 0000" /></label>
+              <label>Home address<AddressInput value={address} onChange={setAddress} /></label>
+            </>}
+            <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} /></label>
+            {err && <p className="error">{err}</p>}
+            <button className="btn wide" onClick={submit} disabled={loading}>
+              {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+            {mode === 'login' && (
+              <p style={{ textAlign: 'center', margin: '12px 0 0' }}>
+                <button className="link-btn" onClick={() => { setMode('forgot'); setErr(''); setMsg(''); }}>Forgot password?</button>
+              </p>
+            )}
+          </>
+        )}
         <button className="auth-modal-close" onClick={onClose}>✕</button>
       </div>
     </div>

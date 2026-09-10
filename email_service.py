@@ -204,7 +204,8 @@ def _send(to_email: str, subject: str, html: str, text: str = '') -> bool:
     try:
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
-        msg['From'] = f'{settings.from_name} <{settings.from_email or settings.smtp_user}>'
+        from_addr = settings.noreply_email or settings.from_email or settings.smtp_user
+        msg['From'] = f'{settings.from_name} <{from_addr}>'
         msg['To'] = to_email
         if text:
             msg.attach(MIMEText(text, 'plain'))
@@ -927,6 +928,74 @@ def send_caretaker_notification(reservation: dict, caretaker_email: str) -> bool
         html,
         f'New {plabel} reservation: {guest}, {checkin} → {checkout} ({nights} nights). Clean by 3 PM on {checkout}.',
     )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# PASSWORD RESET
+# ════════════════════════════════════════════════════════════════════════════
+IMG_HERO_RESET = 'https://images.unsplash.com/photo-1520454974749-611b7248ffdb?w=640&h=380&fit=crop&q=85'
+
+def _password_reset_html(reset_url: str, name: str, account_label: str, expires_minutes: int) -> str:
+    first = (name or 'there').split()[0]
+    body = f"""
+<p class="greeting">
+  Hi {first},<br><br>
+  We received a request to reset the password for your <strong>{account_label}</strong>
+  at {PROPERTY_NAME}. Tap the button below to choose a new password and get back to the coast. 🌊
+</p>
+
+<div class="cta">
+  <a class="cta-btn" href="{reset_url}">Reset My Password</a>
+</div>
+
+<p style="text-align:center;font-size:13px;color:#7aabb0;margin:18px 0 26px;line-height:1.7">
+  This secure link expires in <strong>{expires_minutes} minutes</strong> and can be used once.
+</p>
+
+<div class="info-box info-box-teal">
+  <h3>&#128274; Button not working?</h3>
+  <ul>
+    <li>Copy and paste this link into your browser:</li>
+  </ul>
+  <p style="margin:8px 0 0;font-size:13px;word-break:break-all">
+    <a href="{reset_url}" style="color:{_C_SEA};font-weight:600">{reset_url}</a>
+  </p>
+</div>
+
+<div class="info-box info-box-sand">
+  <h3>&#9888; Didn't request this?</h3>
+  <ul>
+    <li>You can safely ignore this email — your password will stay unchanged.</li>
+    <li>No one can reset your password without the link above.</li>
+    <li>Questions? Reach us at <a href="mailto:{SUPPORT_EMAIL}" style="color:#8a5e00;font-weight:600">{SUPPORT_EMAIL}</a></li>
+  </ul>
+</div>"""
+
+    return _shell(IMG_HERO_RESET,
+        f'linear-gradient(160deg,rgba(5,30,40,.14) 0%,{_C_OCEAN}cc 100%)',
+        'Password Reset', 'Let\'s get you back into your account',
+        f'{account_label} &nbsp;&middot;&nbsp; Secure reset link inside', body)
+
+def send_password_reset(to_email: str, reset_url: str, name: str = '', account_label: str = 'account', expires_minutes: int = 60) -> bool:
+    if not to_email:
+        return False
+    html = _password_reset_html(reset_url, name, account_label, expires_minutes)
+    text = f"""Reset your {account_label} password — {PROPERTY_NAME}
+
+Hi {(name or 'there').split()[0]},
+
+We received a request to reset your password. Open this link to choose a new one
+(expires in {expires_minutes} minutes, single use):
+
+{reset_url}
+
+Didn't request this? You can safely ignore this email — your password won't change.
+Questions? {SUPPORT_EMAIL}"""
+    return _send(to_email, f'Reset your password — {PROPERTY_NAME}', html, text)
+
+def preview_password_reset() -> str:
+    return _password_reset_html('https://orangebeachstay.com/reset-password?token=sample-token',
+        'Sri Harsha', 'Caretaker Portal', 60)
 
 
 # ════════════════════════════════════════════════════════════════════════════

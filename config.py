@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     smtp_password:str=''
     from_email:str=''
     from_name:str='Coastal Haven'
+    noreply_email:str='noreply@orangebeachstay.com'
     openai_api_key:str=''; anthropic_api_key:str=''
     aviationstack_api_key:str=''
     airbnb_ical_url:str=''

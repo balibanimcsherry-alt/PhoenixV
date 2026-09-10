@@ -181,9 +181,10 @@ const INPUT: React.CSSProperties = {
 
 export default function CaretakerDashboard() {
   const [token, setToken] = useState(localStorage.getItem('caretakerToken') || '');
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
   const [regName, setRegName] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
@@ -230,6 +231,21 @@ export default function CaretakerDashboard() {
       if (msg.includes('409') || msg.toLowerCase().includes('taken')) setError('Username already taken.');
       else if (msg.includes('403') || msg.toLowerCase().includes('pin')) setError('Invalid PIN. Registration requires the correct PIN.');
       else setError('Registration failed. Please try again.');
+    }
+    setLoading(false);
+  };
+
+  const forgot = async () => {
+    setError(''); setSuccess('');
+    if (!forgotEmail) { setError('Please enter your account email.'); return; }
+    setLoading(true);
+    try {
+      const r = await api<{ message: string }>('/api/caretaker/forgot-password', {
+        method: 'POST', body: JSON.stringify({ email: forgotEmail }),
+      });
+      setSuccess(r.message || 'If an account exists for that email, a reset link is on its way.');
+    } catch {
+      setError('Something went wrong. Please try again.');
     }
     setLoading(false);
   };
@@ -284,6 +300,30 @@ export default function CaretakerDashboard() {
               style={{ width: '100%', padding: 13, background: '#0d5f6b', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
+            <p style={{ textAlign: 'center', margin: '16px 0 0' }}>
+              <button onClick={() => { setMode('forgot'); setError(''); setSuccess(''); }}
+                style={{ background: 'none', border: 0, color: '#0d5f6b', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+                Forgot password?
+              </button>
+            </p>
+          </>
+        ) : mode === 'forgot' ? (
+          <>
+            <p style={{ color: '#555', fontSize: 13, margin: '0 0 14px', textAlign: 'center', lineHeight: 1.6 }}>
+              Enter your account email and we'll send you a link to reset your password.
+            </p>
+            <input value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="Email address" type="email"
+              style={{ ...INPUT, marginBottom: 20 }} onKeyDown={e => e.key === 'Enter' && forgot()} />
+            <button onClick={forgot} disabled={loading}
+              style={{ width: '100%', padding: 13, background: '#0d5f6b', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? 'Sending…' : 'Send Reset Link'}
+            </button>
+            <p style={{ textAlign: 'center', margin: '16px 0 0' }}>
+              <button onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+                style={{ background: 'none', border: 0, color: '#0d5f6b', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+                Back to Sign In
+              </button>
+            </p>
           </>
         ) : (
           <>

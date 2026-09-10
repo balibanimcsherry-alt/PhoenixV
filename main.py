@@ -12,7 +12,7 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock, CaretakerAccount, PriceOverride
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock, CaretakerAccount, PriceOverride, PasswordResetToken
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin, PriceOverrideIn
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -21,7 +21,8 @@ from email_reader import fetch_ota_guest_info
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
     preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request,
-    send_marketing_campaign, send_caretaker_notification)
+    send_marketing_campaign, send_caretaker_notification, send_password_reset)
+import secrets
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 
 _MARKETING_CAMPAIGNS = [
@@ -1552,6 +1553,64 @@ def caretaker_login(payload:_CaretakerLogin,db:Session=Depends(get_db)):
     if payload.username==settings.caretaker_username and payload.password==settings.caretaker_password:
         return {'token':_make_caretaker_token()}
     raise HTTPException(401,'Invalid credentials')
+
+# ── Password reset (caretaker + customer) ────────────────────────────────────
+_RESET_TTL_MINUTES = 60
+
+class _ForgotPassword(BaseModel): email:str
+class _ResetPassword(BaseModel): token:str; password:str
+
+def _create_reset_token(db:Session, account_type:str, account_id:int) -> str:
+    tok = secrets.token_urlsafe(32)
+    db.add(PasswordResetToken(token=tok, account_type=account_type, account_id=account_id,
+        expires_at=datetime.utcnow()+timedelta(minutes=_RESET_TTL_MINUTES)))
+    db.commit()
+    return tok
+
+def _reset_link(token:str) -> str:
+    return f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
+
+_GENERIC_FORGOT_MSG = {'ok':True,'message':'If an account exists for that email, a password reset link is on its way.'}
+
+@app.post('/api/caretaker/forgot-password')
+def caretaker_forgot_password(payload:_ForgotPassword, db:Session=Depends(get_db)):
+    email = payload.email.strip().lower()
+    acct = db.query(CaretakerAccount).filter(CaretakerAccount.email.ilike(email)).first()
+    if acct and acct.email:
+        tok = _create_reset_token(db,'caretaker',acct.id)
+        try: send_password_reset(acct.email, _reset_link(tok), name=acct.name or acct.username, account_label='Caretaker Portal', expires_minutes=_RESET_TTL_MINUTES)
+        except Exception as e: print(f'Caretaker reset email error to {acct.email}: {e}')
+    return _GENERIC_FORGOT_MSG
+
+@app.post('/api/customer/forgot-password')
+def customer_forgot_password(payload:_ForgotPassword, db:Session=Depends(get_db)):
+    email = payload.email.strip().lower()
+    acct = db.query(Customer).filter(Customer.email.ilike(email)).first()
+    if acct and acct.email:
+        tok = _create_reset_token(db,'customer',acct.id)
+        try: send_password_reset(acct.email, _reset_link(tok), name=acct.name, account_label='Guest Account', expires_minutes=_RESET_TTL_MINUTES)
+        except Exception as e: print(f'Customer reset email error to {acct.email}: {e}')
+    return _GENERIC_FORGOT_MSG
+
+@app.post('/api/reset-password')
+def reset_password(payload:_ResetPassword, db:Session=Depends(get_db)):
+    if len(payload.password) < 8:
+        raise HTTPException(400,'Password must be at least 8 characters.')
+    rt = db.query(PasswordResetToken).filter(PasswordResetToken.token==payload.token).first()
+    if not rt or rt.used or rt.expires_at < datetime.utcnow():
+        raise HTTPException(400,'This reset link is invalid or has expired. Please request a new one.')
+    if rt.account_type=='caretaker':
+        acct = db.query(CaretakerAccount).filter(CaretakerAccount.id==rt.account_id).first()
+    elif rt.account_type=='customer':
+        acct = db.query(Customer).filter(Customer.id==rt.account_id).first()
+    else:
+        acct = None
+    if not acct:
+        raise HTTPException(400,'The account for this link no longer exists.')
+    acct.password_hash = _pwd.hash(payload.password)
+    rt.used = True
+    db.commit()
+    return {'ok':True,'account_type':rt.account_type,'message':'Your password has been reset. You can now sign in.'}
 
 @app.get('/api/caretaker/reservations')
 def caretaker_reservations(_:None=Depends(_require_caretaker),db:Session=Depends(get_db)):
