@@ -641,6 +641,16 @@ export default function Admin() {
     }
   };
 
+  const forgotAdminId = async () => {
+    setLoginErr(''); setForgotMsg('');
+    try {
+      const r = await api<{ message: string }>('/api/admin/forgot-username', { method: 'POST', body: JSON.stringify({}) });
+      setForgotMsg(r.message || 'If an admin email is configured, your login ID has been sent.');
+    } catch {
+      setLoginErr('Something went wrong. Please try again.');
+    }
+  };
+
   const save = async () => {
     await api('/api/admin/settings', { method: 'PUT', headers: headers(), body: JSON.stringify(settings) });
     setSaved('Saved ✓'); setTimeout(() => setSaved(''), 2000);
@@ -650,15 +660,19 @@ export default function Admin() {
     <main className="admin-login">
       <img src="/logo.svg" />
       <h1>Coastal Haven Admin</h1>
-      <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" />
+      <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username or email" />
       <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" onKeyDown={e => e.key === 'Enter' && login()} />
       <button className="btn wide" onClick={login}>Sign in</button>
       {loginErr && <p style={{ color: '#dc3545', fontSize: 13, margin: '12px 0 0', textAlign: 'center' }}>{loginErr}</p>}
       {forgotMsg && <p style={{ color: '#28704e', fontSize: 13, margin: '12px 0 0', textAlign: 'center', fontWeight: 600 }}>{forgotMsg}</p>}
-      <p style={{ textAlign: 'center', margin: '14px 0 0' }}>
+      <p style={{ textAlign: 'center', margin: '14px 0 0', display: 'flex', justifyContent: 'center', gap: 14 }}>
         <button onClick={forgotAdmin}
           style={{ background: 'none', border: 0, color: '#0d5f6b', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
           Forgot password?
+        </button>
+        <button onClick={forgotAdminId}
+          style={{ background: 'none', border: 0, color: '#0d5f6b', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+          Forgot ID?
         </button>
       </p>
     </main>

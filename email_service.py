@@ -998,6 +998,59 @@ def preview_password_reset() -> str:
         'Sri Harsha', 'Caretaker Portal', 60)
 
 
+def _username_reminder_html(login_id: str, name: str, account_label: str, signin_path: str) -> str:
+    first = (name or 'there').split()[0]
+    signin_url = f"{PROPERTY_URL}{signin_path}"
+    body = f"""
+<p class="greeting">
+  Hi {first},<br><br>
+  You asked us to remind you of the login ID for your <strong>{account_label}</strong>
+  at {PROPERTY_NAME}. Here it is: 🌊
+</p>
+
+<div class="ref-box">
+  <div class="ref-label">Your login ID</div>
+  <div class="ref-number">{login_id}</div>
+  <div style="font-size:12px;color:#6a9eaa;margin-top:6px">Tip: you can also sign in with the email address on your account</div>
+</div>
+
+<div class="cta">
+  <a class="cta-btn" href="{signin_url}">Go to Sign In</a>
+</div>
+
+<div class="info-box info-box-sand">
+  <h3>&#9888; Didn't request this?</h3>
+  <ul>
+    <li>You can safely ignore this email — nothing has changed on your account.</li>
+    <li>Questions? Reach us at <a href="mailto:{SUPPORT_EMAIL}" style="color:#8a5e00;font-weight:600">{SUPPORT_EMAIL}</a></li>
+  </ul>
+</div>"""
+    return _shell(IMG_HERO_RESET,
+        f'linear-gradient(160deg,rgba(5,30,40,.14) 0%,{_C_OCEAN}cc 100%)',
+        'Your Login ID', 'A quick reminder for your account',
+        f'{account_label} &nbsp;&middot;&nbsp; Login ID reminder', body)
+
+def send_username_reminder(to_email: str, login_id: str, name: str = '', account_label: str = 'account', signin_path: str = '/') -> bool:
+    if not to_email:
+        return False
+    html = _username_reminder_html(login_id, name, account_label, signin_path)
+    text = f"""Your {account_label} login ID — {PROPERTY_NAME}
+
+Hi {(name or 'there').split()[0]},
+
+Your login ID is: {login_id}
+
+You can also sign in with the email address on your account.
+Sign in: {PROPERTY_URL}{signin_path}
+
+Didn't request this? You can safely ignore this email.
+Questions? {SUPPORT_EMAIL}"""
+    return _send(to_email, f'Your login ID — {PROPERTY_NAME}', html, text)
+
+def preview_username_reminder() -> str:
+    return _username_reminder_html('sriharsha', 'Sri Harsha', 'Caretaker Portal', '/caretaker')
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # PREVIEW helpers (return raw HTML, no send)
 # ════════════════════════════════════════════════════════════════════════════

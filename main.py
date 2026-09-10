@@ -21,7 +21,7 @@ from email_reader import fetch_ota_guest_info
 import analytics as _analytics
 from email_service import (send_booking_confirmation, send_owner_notification,
     preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request,
-    send_marketing_campaign, send_caretaker_notification, send_password_reset)
+    send_marketing_campaign, send_caretaker_notification, send_password_reset, send_username_reminder)
 import secrets
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 
@@ -705,9 +705,15 @@ async def stripe_webhook(request:Request,db:Session=Depends(get_db)):
 def chat(payload:ChatIn,db:Session=Depends(get_db)):
     m=ChatMessage(name=payload.name,email=payload.email,message=payload.message);db.add(m);db.commit();return {'ok':True}
 
+def _admin_identifier_ok(ident:str) -> bool:
+    ident=(ident or '').strip()
+    if ident==settings.admin_username: return True
+    if settings.admin_email and ident.lower()==settings.admin_email.strip().lower(): return True
+    return False
+
 @app.post('/api/admin/login')
 def login(payload:AdminLogin,db:Session=Depends(get_db)):
-    if payload.username==settings.admin_username:
+    if _admin_identifier_ok(payload.username):
         # .env master password always works (owner recovery)
         if payload.password==settings.admin_password:
             return {'token':make_token()}
@@ -716,6 +722,14 @@ def login(payload:AdminLogin,db:Session=Depends(get_db)):
         if cred and cred.password_hash and _pwd.verify(payload.password,cred.password_hash):
             return {'token':make_token()}
     raise HTTPException(401,'Invalid credentials')
+
+@app.post('/api/admin/forgot-username')
+def admin_forgot_username(db:Session=Depends(get_db)):
+    dest = settings.admin_email or settings.from_email or settings.smtp_user
+    if dest:
+        try: send_username_reminder(dest, settings.admin_username, name='Admin', account_label='Admin Dashboard', signin_path='/admin')
+        except Exception as e: print(f'Admin username reminder error to {dest}: {e}')
+    return {'ok':True,'message':'If an admin email is configured, your login ID has been sent to the site owner.'}
 
 @app.get('/api/admin/settings',response_model=SettingsSchema)
 def admin_settings(_:None=Depends(require_admin),db:Session=Depends(get_db)):
@@ -1554,10 +1568,13 @@ def caretaker_register(payload:_CaretakerRegister,db:Session=Depends(get_db)):
 
 @app.post('/api/caretaker/login')
 def caretaker_login(payload:_CaretakerLogin,db:Session=Depends(get_db)):
-    account=db.query(CaretakerAccount).filter(CaretakerAccount.username==payload.username).first()
+    ident=(payload.username or '').strip()
+    account=db.query(CaretakerAccount).filter(
+        (CaretakerAccount.username==ident)|(CaretakerAccount.email.ilike(ident))
+    ).first()
     if account and _pwd.verify(payload.password,account.password_hash):
         return {'token':_make_caretaker_token()}
-    if payload.username==settings.caretaker_username and payload.password==settings.caretaker_password:
+    if ident==settings.caretaker_username and payload.password==settings.caretaker_password:
         return {'token':_make_caretaker_token()}
     raise HTTPException(401,'Invalid credentials')
 
@@ -1578,6 +1595,15 @@ def _reset_link(token:str) -> str:
     return f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
 
 _GENERIC_FORGOT_MSG = {'ok':True,'message':'If an account exists for that email, a password reset link is on its way.'}
+
+@app.post('/api/caretaker/forgot-username')
+def caretaker_forgot_username(payload:_ForgotPassword,db:Session=Depends(get_db)):
+    email=payload.email.strip().lower()
+    acct=db.query(CaretakerAccount).filter(CaretakerAccount.email.ilike(email)).first()
+    if acct and acct.email:
+        try: send_username_reminder(acct.email, acct.username, name=acct.name or acct.username, account_label='Caretaker Portal', signin_path='/caretaker')
+        except Exception as e: print(f'Caretaker username reminder error to {acct.email}: {e}')
+    return {'ok':True,'message':'If an account exists for that email, your login ID is on its way.'}
 
 @app.post('/api/caretaker/forgot-password')
 def caretaker_forgot_password(payload:_ForgotPassword, db:Session=Depends(get_db)):

@@ -181,7 +181,7 @@ const INPUT: React.CSSProperties = {
 
 export default function CaretakerDashboard() {
   const [token, setToken] = useState(localStorage.getItem('caretakerToken') || '');
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'forgotId'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [forgotEmail, setForgotEmail] = useState('');
@@ -250,6 +250,21 @@ export default function CaretakerDashboard() {
     setLoading(false);
   };
 
+  const forgotIdSubmit = async () => {
+    setError(''); setSuccess('');
+    if (!forgotEmail) { setError('Please enter your account email.'); return; }
+    setLoading(true);
+    try {
+      const r = await api<{ message: string }>('/api/caretaker/forgot-username', {
+        method: 'POST', body: JSON.stringify({ email: forgotEmail }),
+      });
+      setSuccess(r.message || 'If an account exists for that email, your login ID is on its way.');
+    } catch {
+      setError('Something went wrong. Please try again.');
+    }
+    setLoading(false);
+  };
+
   const load = async (t = token) => {
     try {
       const r = await api<CaretakerRes[]>('/api/caretaker/reservations', {
@@ -292,7 +307,7 @@ export default function CaretakerDashboard() {
 
         {mode === 'login' ? (
           <>
-            <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username"
+            <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username or email"
               style={{ ...INPUT, marginBottom: 12 }} />
             <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password"
               style={{ ...INPUT, marginBottom: 20 }} onKeyDown={e => e.key === 'Enter' && login()} />
@@ -300,23 +315,29 @@ export default function CaretakerDashboard() {
               style={{ width: '100%', padding: 13, background: '#0d5f6b', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
-            <p style={{ textAlign: 'center', margin: '16px 0 0' }}>
+            <p style={{ textAlign: 'center', margin: '16px 0 0', display: 'flex', justifyContent: 'center', gap: 14 }}>
               <button onClick={() => { setMode('forgot'); setError(''); setSuccess(''); }}
                 style={{ background: 'none', border: 0, color: '#0d5f6b', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
                 Forgot password?
               </button>
+              <button onClick={() => { setMode('forgotId'); setError(''); setSuccess(''); }}
+                style={{ background: 'none', border: 0, color: '#0d5f6b', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+                Forgot ID?
+              </button>
             </p>
           </>
-        ) : mode === 'forgot' ? (
+        ) : mode === 'forgot' || mode === 'forgotId' ? (
           <>
             <p style={{ color: '#555', fontSize: 13, margin: '0 0 14px', textAlign: 'center', lineHeight: 1.6 }}>
-              Enter your account email and we'll send you a link to reset your password.
+              {mode === 'forgot'
+                ? "Enter your account email and we'll send you a link to reset your password."
+                : "Enter your account email and we'll send you your login ID."}
             </p>
             <input value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="Email address" type="email"
-              style={{ ...INPUT, marginBottom: 20 }} onKeyDown={e => e.key === 'Enter' && forgot()} />
-            <button onClick={forgot} disabled={loading}
+              style={{ ...INPUT, marginBottom: 20 }} onKeyDown={e => e.key === 'Enter' && (mode === 'forgot' ? forgot() : forgotIdSubmit())} />
+            <button onClick={mode === 'forgot' ? forgot : forgotIdSubmit} disabled={loading}
               style={{ width: '100%', padding: 13, background: '#0d5f6b', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
-              {loading ? 'Sending…' : 'Send Reset Link'}
+              {loading ? 'Sending…' : mode === 'forgot' ? 'Send Reset Link' : 'Email My Login ID'}
             </button>
             <p style={{ textAlign: 'center', margin: '16px 0 0' }}>
               <button onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
