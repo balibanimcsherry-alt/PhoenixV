@@ -38,7 +38,7 @@ export default function ResetPassword() {
     setLoading(false);
   };
 
-  const backLink = accountType === 'customer' ? '/book' : '/caretaker';
+  const backLink = accountType === 'customer' ? '/book' : accountType === 'admin' ? '/admin' : '/caretaker';
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#f5f9fa,#e8f4f5)', padding: 20 }}>

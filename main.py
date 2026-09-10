@@ -12,7 +12,7 @@ import httpx
 import asyncio
 from config import settings
 from db import Base, engine, get_db
-from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock, CaretakerAccount, PriceOverride, PasswordResetToken
+from models import AppSettings, ChatMessage, BookingRequest, Customer, IcalReservation, Task, Expense, GuestReview, AutoMessage, PropertyInfo, DailyPrice, MarketingLog, ManualBlock, CaretakerAccount, PriceOverride, PasswordResetToken, AdminCredential
 from schemas import AdminLogin, ChatIn, BookingIn, SettingsSchema, CustomerRegister, CustomerLogin, PriceOverrideIn
 from passlib.context import CryptContext
 _pwd=CryptContext(schemes=['bcrypt'],deprecated='auto')
@@ -706,9 +706,16 @@ def chat(payload:ChatIn,db:Session=Depends(get_db)):
     m=ChatMessage(name=payload.name,email=payload.email,message=payload.message);db.add(m);db.commit();return {'ok':True}
 
 @app.post('/api/admin/login')
-def login(payload:AdminLogin):
-    if payload.username!=settings.admin_username or payload.password!=settings.admin_password: raise HTTPException(401,'Invalid credentials')
-    return {'token':make_token()}
+def login(payload:AdminLogin,db:Session=Depends(get_db)):
+    if payload.username==settings.admin_username:
+        # .env master password always works (owner recovery)
+        if payload.password==settings.admin_password:
+            return {'token':make_token()}
+        # DB password set via email reset
+        cred=db.query(AdminCredential).filter(AdminCredential.id==1).first()
+        if cred and cred.password_hash and _pwd.verify(payload.password,cred.password_hash):
+            return {'token':make_token()}
+    raise HTTPException(401,'Invalid credentials')
 
 @app.get('/api/admin/settings',response_model=SettingsSchema)
 def admin_settings(_:None=Depends(require_admin),db:Session=Depends(get_db)):
@@ -1592,6 +1599,15 @@ def customer_forgot_password(payload:_ForgotPassword, db:Session=Depends(get_db)
         except Exception as e: print(f'Customer reset email error to {acct.email}: {e}')
     return _GENERIC_FORGOT_MSG
 
+@app.post('/api/admin/forgot-password')
+def admin_forgot_password(db:Session=Depends(get_db)):
+    dest = settings.admin_email or settings.from_email or settings.smtp_user
+    if dest:
+        tok = _create_reset_token(db,'admin',1)
+        try: send_password_reset(dest, _reset_link(tok), name='Admin', account_label='Admin Dashboard', expires_minutes=_RESET_TTL_MINUTES)
+        except Exception as e: print(f'Admin reset email error to {dest}: {e}')
+    return {'ok':True,'message':'If an admin email is configured, a password reset link has been sent to the site owner.'}
+
 @app.post('/api/reset-password')
 def reset_password(payload:_ResetPassword, db:Session=Depends(get_db)):
     if len(payload.password) < 8:
@@ -1599,6 +1615,15 @@ def reset_password(payload:_ResetPassword, db:Session=Depends(get_db)):
     rt = db.query(PasswordResetToken).filter(PasswordResetToken.token==payload.token).first()
     if not rt or rt.used or rt.expires_at < datetime.utcnow():
         raise HTTPException(400,'This reset link is invalid or has expired. Please request a new one.')
+    if rt.account_type=='admin':
+        cred = db.query(AdminCredential).filter(AdminCredential.id==1).first()
+        if not cred:
+            cred = AdminCredential(id=1); db.add(cred)
+        cred.password_hash = _pwd.hash(payload.password)
+        cred.updated_at = datetime.utcnow()
+        rt.used = True
+        db.commit()
+        return {'ok':True,'account_type':'admin','message':'Your admin password has been reset. You can now sign in.'}
     if rt.account_type=='caretaker':
         acct = db.query(CaretakerAccount).filter(CaretakerAccount.id==rt.account_id).first()
     elif rt.account_type=='customer':

@@ -574,6 +574,8 @@ export default function Admin() {
   const [token, setToken] = useState(localStorage.getItem('adminToken') || '');
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
+  const [loginErr, setLoginErr] = useState('');
+  const [forgotMsg, setForgotMsg] = useState('');
   const [tab, setTab] = useState('overview');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [settings, setSettings] = useState(defaults);
@@ -619,9 +621,24 @@ export default function Admin() {
   }, [analyticsDays]);
 
   const login = async () => {
-    const r = await api<{ token: string }>('/api/admin/login', { method: 'POST', body: JSON.stringify({ username, password }) });
-    localStorage.setItem('adminToken', r.token);
-    setToken(r.token);
+    setLoginErr('');
+    try {
+      const r = await api<{ token: string }>('/api/admin/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+      localStorage.setItem('adminToken', r.token);
+      setToken(r.token);
+    } catch {
+      setLoginErr('Invalid username or password.');
+    }
+  };
+
+  const forgotAdmin = async () => {
+    setLoginErr(''); setForgotMsg('');
+    try {
+      const r = await api<{ message: string }>('/api/admin/forgot-password', { method: 'POST', body: JSON.stringify({}) });
+      setForgotMsg(r.message || 'If an admin email is configured, a reset link has been sent.');
+    } catch {
+      setLoginErr('Something went wrong. Please try again.');
+    }
   };
 
   const save = async () => {
@@ -636,6 +653,14 @@ export default function Admin() {
       <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" />
       <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Password" onKeyDown={e => e.key === 'Enter' && login()} />
       <button className="btn wide" onClick={login}>Sign in</button>
+      {loginErr && <p style={{ color: '#dc3545', fontSize: 13, margin: '12px 0 0', textAlign: 'center' }}>{loginErr}</p>}
+      {forgotMsg && <p style={{ color: '#28704e', fontSize: 13, margin: '12px 0 0', textAlign: 'center', fontWeight: 600 }}>{forgotMsg}</p>}
+      <p style={{ textAlign: 'center', margin: '14px 0 0' }}>
+        <button onClick={forgotAdmin}
+          style={{ background: 'none', border: 0, color: '#0d5f6b', fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+          Forgot password?
+        </button>
+      </p>
     </main>
   );
 

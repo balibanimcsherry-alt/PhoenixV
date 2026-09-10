@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     caretaker_username:str='caretaker'
     caretaker_password:str='caretaker-change-me'
     caretaker_email:str=''
+    admin_email:str=''
     model_config=SettingsConfigDict(env_file=str(_ENV),extra='ignore')
 
     @property
