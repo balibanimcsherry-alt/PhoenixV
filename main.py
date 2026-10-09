@@ -1725,7 +1725,11 @@ def _build_caretaker_ics(db: Session) -> str:
             nights = (date.fromisoformat(co)-date.fromisoformat(ci)).days
         except Exception:
             continue
-        lines += ['BEGIN:VEVENT', f'UID:{uid}', f'DTSTART;VALUE=DATE:{ci_c}', f'DTEND;VALUE=DATE:{co_c}',
+        # Timed event: 4 PM check-in day -> 10 AM check-out day, so Google shows a
+        # partial bar from 4 PM on arrival and a partial bar until 10 AM on checkout.
+        lines += ['BEGIN:VEVENT', f'UID:{uid}',
+                  f'DTSTART;TZID=America/Chicago:{ci_c}T160000',
+                  f'DTEND;TZID=America/Chicago:{co_c}T100000',
                   f'SUMMARY:{plabel}: {guest}',
                   f'DESCRIPTION:{nights} night{"s" if nights!=1 else ""}. Check-in 4 PM\\, check-out 10 AM. Clean & prep unit by 3 PM on checkout day.',
                   'STATUS:CONFIRMED', 'END:VEVENT']
