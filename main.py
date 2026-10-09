@@ -1719,17 +1719,23 @@ def _build_caretaker_ics(db: Session) -> str:
     lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Coastal Haven//Caretaker//EN',
              'CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Coastal Haven Cleaning Schedule',
              'X-WR-TIMEZONE:America/Chicago']
+    # Same-day turnover dates (one guest checks out, another checks in that day).
+    turnover = {co for (_, _, _, co, _) in events} & {ci for (_, _, ci, _, _) in events}
     for uid, plabel, ci, co, guest in events:
         try:
-            ci_c = date.fromisoformat(ci).strftime('%Y%m%d'); co_c = date.fromisoformat(co).strftime('%Y%m%d')
-            nights = (date.fromisoformat(co)-date.fromisoformat(ci)).days
+            ci_d = date.fromisoformat(ci); co_d = date.fromisoformat(co)
+            nights = (co_d - ci_d).days
         except Exception:
             continue
-        # Timed event: 4 PM check-in day -> 10 AM check-out day, so Google shows a
-        # partial bar from 4 PM on arrival and a partial bar until 10 AM on checkout.
+        # Timed event: 4 PM check-in day -> 10 AM check-out day. On a turnover day,
+        # extend to cover the whole day (start-of-day arrival / end-of-day departure)
+        # so the departing and arriving bars overlap; other days keep 4 PM/10 AM.
+        dtstart = ci_d.strftime('%Y%m%d') + ('T000000' if ci in turnover else 'T160000')
+        dtend = ((co_d + timedelta(days=1)).strftime('%Y%m%d') + 'T000000') if co in turnover \
+                else (co_d.strftime('%Y%m%d') + 'T100000')
         lines += ['BEGIN:VEVENT', f'UID:{uid}',
-                  f'DTSTART;TZID=America/Chicago:{ci_c}T160000',
-                  f'DTEND;TZID=America/Chicago:{co_c}T100000',
+                  f'DTSTART;TZID=America/Chicago:{dtstart}',
+                  f'DTEND;TZID=America/Chicago:{dtend}',
                   f'SUMMARY:{plabel}: {guest}',
                   f'DESCRIPTION:{nights} night{"s" if nights!=1 else ""}. Check-in 4 PM\\, check-out 10 AM. Clean & prep unit by 3 PM on checkout day.',
                   'STATUS:CONFIRMED', 'END:VEVENT']
