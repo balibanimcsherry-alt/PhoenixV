@@ -1150,8 +1150,10 @@ async def _do_pms_sync(db: Session, notify: bool = True) -> int:
     for platform, url in platforms:
         if not url: continue
         raw_events = await sync_platform_ical(platform, url)
-        events = _consolidate_daily_blocks(raw_events)
+        fetch_ok = raw_events is not None  # None => fetch failed; never reap on a failed fetch
+        events = _consolidate_daily_blocks(raw_events or [])
         new_for_notify = []
+        seen_uids: set[str] = set()  # scoped uids kept from this feed (for reaping)
         for ev in events:
             uid = ev.get('uid')
             if not uid: continue
@@ -1190,6 +1192,17 @@ async def _do_pms_sync(db: Session, notify: bool = True) -> int:
                 db.add(row)
                 total_new+=1
                 new_for_notify.append({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co,'guests':None})
+            seen_uids.add(scoped)
+        # Reap silently-cancelled reservations: future-dated rows for this platform
+        # that vanished from the feed (OTAs like Airbnb drop the event instead of
+        # sending STATUS:CANCELLED). Only when the fetch clearly succeeded AND the
+        # feed had events — so an outage or 200 error page can't wipe the calendar.
+        if fetch_ok and events:
+            for row in db.query(IcalReservation).filter(
+                    IcalReservation.platform==platform,
+                    IcalReservation.checkout>=today.isoformat()).all():
+                if row.uid not in seen_uids:
+                    db.delete(row)
         db.commit()
         if notify:
             for res_data in new_for_notify:

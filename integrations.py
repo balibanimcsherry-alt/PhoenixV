@@ -190,18 +190,23 @@ def _is_cross_calendar_block(platform: str, uid: str, summary: str) -> bool:
     return False
 
 
-async def sync_platform_ical(platform: str, url: str) -> list[dict]:
-    """Fetch and parse iCal from an OTA URL. Returns list of event dicts."""
+async def sync_platform_ical(platform: str, url: str) -> list[dict] | None:
+    """Fetch and parse iCal from an OTA URL.
+
+    Returns the event list on success (possibly empty), or None when the fetch
+    failed (no URL, non-200, network error). Callers use None to avoid treating
+    a failed fetch as "the calendar is now empty".
+    """
     if not url:
-        return []
+        return None
     try:
         async with httpx.AsyncClient(timeout=20) as c:
             r = await c.get(url, follow_redirects=True)
         if r.status_code != 200:
-            return []
+            return None
         return _parse_ical_events(r.text)
     except Exception:
-        return []
+        return None
 
 
 async def pricelabs_nightly_rate(checkin: str, checkout: str) -> tuple[float, str]:
