@@ -23,6 +23,7 @@ from email_service import (send_booking_confirmation, send_owner_notification,
     preview_booking_confirmation, preview_pre_arrival, preview_checkout_reminder, preview_review_request,
     send_marketing_campaign, send_caretaker_notification, send_password_reset, send_username_reminder)
 import secrets
+import hashlib
 app=FastAPI(title='Coastal Haven API',version='1.0.0')
 
 _MARKETING_CAMPAIGNS = [
@@ -1688,6 +1689,48 @@ def caretaker_reservations(_:None=Depends(_require_caretaker),db:Session=Depends
 def caretaker_seen(_:None=Depends(_require_caretaker),db:Session=Depends(get_db)):
     db.query(IcalReservation).filter(IcalReservation.is_new==True).update({'is_new':False})
     db.commit(); return {'ok':True}
+
+# ── Caretaker Google Calendar feed ───────────────────────────────────────────
+def _caretaker_cal_token() -> str:
+    """Stable per-deployment secret derived from jwt_secret — no extra env var."""
+    return hashlib.sha256(f'caretaker-cal:{settings.jwt_secret}'.encode()).hexdigest()[:32]
+
+def _build_caretaker_ics(db: Session) -> str:
+    """iCal feed of all upcoming reservations (OTA + direct, excluding cancelled)."""
+    today_s = date.today().isoformat()
+    events = []  # (uid, platform label, checkin, checkout, guest)
+    for r in db.query(IcalReservation).filter(IcalReservation.checkout>=today_s).order_by(IcalReservation.checkin).all():
+        events.append((f'care-ota-{r.id}@coastalhaven', (r.platform or 'OTA').title(), r.checkin, r.checkout, r.guest_name or 'Guest'))
+    for b in db.query(BookingRequest).filter(BookingRequest.checkout>=today_s, BookingRequest.status!='cancelled').order_by(BookingRequest.checkin).all():
+        events.append((f'care-direct-{b.id}@coastalhaven', 'Direct', b.checkin, b.checkout, b.guest_name or 'Guest'))
+    lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Coastal Haven//Caretaker//EN',
+             'CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Coastal Haven Cleaning Schedule',
+             'X-WR-TIMEZONE:America/Chicago']
+    for uid, plabel, ci, co, guest in events:
+        try:
+            ci_c = date.fromisoformat(ci).strftime('%Y%m%d'); co_c = date.fromisoformat(co).strftime('%Y%m%d')
+            nights = (date.fromisoformat(co)-date.fromisoformat(ci)).days
+        except Exception:
+            continue
+        lines += ['BEGIN:VEVENT', f'UID:{uid}', f'DTSTART;VALUE=DATE:{ci_c}', f'DTEND;VALUE=DATE:{co_c}',
+                  f'SUMMARY:{plabel}: {guest}',
+                  f'DESCRIPTION:{nights} night{"s" if nights!=1 else ""}. Check-in 4 PM\\, check-out 10 AM. Clean & prep unit by 3 PM on checkout day.',
+                  'STATUS:CONFIRMED', 'END:VEVENT']
+    lines.append('END:VCALENDAR')
+    return '\r\n'.join(lines)
+
+@app.get('/api/caretaker/calendar/{token}.ics', response_class=PlainTextResponse)
+def caretaker_calendar_feed(token:str, db:Session=Depends(get_db)):
+    if token != _caretaker_cal_token():
+        raise HTTPException(403, 'Invalid calendar token')
+    return PlainTextResponse(_build_caretaker_ics(db), media_type='text/calendar; charset=utf-8')
+
+@app.get('/api/caretaker/calendar-url')
+def caretaker_calendar_url(request:Request, _:None=Depends(_require_caretaker)):
+    base = str(request.base_url).rstrip('/')
+    if not (base.startswith('http://localhost') or base.startswith('http://127.')):
+        base = base.replace('http://', 'https://', 1)  # Render terminates TLS at the proxy
+    return {'url': f'{base}/api/caretaker/calendar/{_caretaker_cal_token()}.ics'}
 
 # Serve React SPA in production
 from pathlib import Path as _Path

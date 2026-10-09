@@ -192,6 +192,8 @@ export default function CaretakerDashboard() {
   const [regConfirm, setRegConfirm] = useState('');
   const [regPin, setRegPin] = useState('');
   const [reservations, setReservations] = useState<CaretakerRes[]>([]);
+  const [calUrl, setCalUrl] = useState('');
+  const [calCopied, setCalCopied] = useState(false);
   const [view, setView] = useState<'today' | 'calendar'>('today');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -271,6 +273,10 @@ export default function CaretakerDashboard() {
         headers: { Authorization: `Bearer ${t}` },
       });
       setReservations(r);
+      try {
+        const c = await api<{ url: string }>('/api/caretaker/calendar-url', { headers: { Authorization: `Bearer ${t}` } });
+        setCalUrl(c.url);
+      } catch { /* non-critical */ }
       await api('/api/caretaker/seen', { method: 'POST', headers: { Authorization: `Bearer ${t}` } });
     } catch {
       localStorage.removeItem('caretakerToken');
@@ -406,6 +412,29 @@ export default function CaretakerDashboard() {
             </button>
           ))}
         </div>
+
+        {calUrl && (
+          <div style={{ background: '#fff', border: '1px solid #cfe7ea', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, color: '#0d5f6b', fontSize: 15, marginBottom: 6 }}>📅 Sync to your Google Calendar</div>
+            <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666' }}>
+              Subscribe once and every reservation shows up automatically — it refreshes when bookings change.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <a href={`https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(calUrl.replace(/^https?:/, 'webcal:'))}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ background: '#0d5f6b', color: '#fff', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+                Add to Google Calendar
+              </a>
+              <button onClick={() => { navigator.clipboard.writeText(calUrl); setCalCopied(true); setTimeout(() => setCalCopied(false), 2000); }}
+                style={{ background: '#eef5f6', color: '#0d5f6b', border: '1px solid #cfe7ea', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                {calCopied ? '✓ Copied' : 'Copy feed URL'}
+              </button>
+            </div>
+            <p style={{ margin: '10px 0 0', fontSize: 12, color: '#999' }}>
+              On desktop: Google Calendar → Other calendars → + → From URL → paste the copied link.
+            </p>
+          </div>
+        )}
 
         {view === 'calendar' && <CalendarView reservations={reservations} />}
 
