@@ -1749,17 +1749,19 @@ def _build_caretaker_ics(db: Session) -> str:
              'X-WR-TIMEZONE:America/Chicago']
     for uid, plabel, ci, co, guest in events:
         try:
-            ci_c = date.fromisoformat(ci).strftime('%Y%m%d'); co_c = date.fromisoformat(co).strftime('%Y%m%d')
-            nights = (date.fromisoformat(co)-date.fromisoformat(ci)).days
+            ci_d = date.fromisoformat(ci); co_d = date.fromisoformat(co)
+            nights = (co_d - ci_d).days
         except Exception:
             continue
-        # Timed event: 4 PM check-in day -> 10 AM check-out day, so Google shows a
-        # partial bar from 4 PM on arrival and a partial bar until 10 AM on checkout.
+        # All-day event with an exclusive checkout date (standard iCal convention):
+        # the departing stay does NOT cover its checkout day, so back-to-back stays
+        # never overlap on the shared turnover day. Times live in the title/notes.
+        co_label = f'{co_d.strftime("%a")} {co_d.month}/{co_d.day}'
         lines += ['BEGIN:VEVENT', f'UID:{uid}',
-                  f'DTSTART;TZID=America/Chicago:{ci_c}T160000',
-                  f'DTEND;TZID=America/Chicago:{co_c}T100000',
-                  f'SUMMARY:{plabel}: {guest}',
-                  f'DESCRIPTION:{nights} night{"s" if nights!=1 else ""}. Check-in 4 PM\\, check-out 10 AM. Clean & prep unit by 3 PM on checkout day.',
+                  f'DTSTART;VALUE=DATE:{ci_d.strftime("%Y%m%d")}',
+                  f'DTEND;VALUE=DATE:{co_d.strftime("%Y%m%d")}',
+                  f'SUMMARY:{plabel}: {guest} (out {co_label})',
+                  f'DESCRIPTION:{nights} night{"s" if nights!=1 else ""}. Check-in 4 PM\\, check-out 10 AM. Clean & prep unit by 3 PM on {co_label}.',
                   'STATUS:CONFIRMED', 'END:VEVENT']
     lines.append('END:VCALENDAR')
     return '\r\n'.join(lines)
