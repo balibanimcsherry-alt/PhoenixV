@@ -465,6 +465,25 @@ def _build_calendar_ics(db: Session) -> str:
             'STATUS:CONFIRMED',
             'END:VEVENT',
         ]
+    # OTA reservations (Airbnb/VRBO/Booking) — so a booking on one channel blocks
+    # the dates on the others that import this feed. Our UID carries 'coastalhaven'
+    # so _is_cross_calendar_block filters it back out when a channel echoes it.
+    today_s = date.today().isoformat()
+    for r in db.query(IcalReservation).filter(IcalReservation.checkout>=today_s).all():
+        try:
+            ci = date.fromisoformat(r.checkin)
+            co = date.fromisoformat(r.checkout)
+        except Exception:
+            continue
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:ota-{r.id}@coastalhaven',
+            f'DTSTART;VALUE=DATE:{ci.strftime("%Y%m%d")}',
+            f'DTEND;VALUE=DATE:{co.strftime("%Y%m%d")}',
+            f'SUMMARY:Coastal Haven - {(r.platform or "OTA").title()} Reserved',
+            'STATUS:CONFIRMED',
+            'END:VEVENT',
+        ]
     lines.append('END:VCALENDAR')
     return '\r\n'.join(lines)
 
@@ -1152,7 +1171,6 @@ async def _do_pms_sync(db: Session, notify: bool = True) -> int:
         raw_events = await sync_platform_ical(platform, url)
         fetch_ok = raw_events is not None  # None => fetch failed; never reap on a failed fetch
         events = _consolidate_daily_blocks(raw_events or [])
-        new_for_notify = []
         seen_uids: set[str] = set()  # scoped uids kept from this feed (for reaping)
         for ev in events:
             uid = ev.get('uid')
@@ -1191,7 +1209,6 @@ async def _do_pms_sync(db: Session, notify: bool = True) -> int:
                     email_sent=False)
                 db.add(row)
                 total_new+=1
-                new_for_notify.append({'platform':platform,'guest_name':name,'checkin':ci,'checkout':co,'guests':None})
             seen_uids.add(scoped)
         # Reap silently-cancelled reservations: future-dated rows for this platform
         # that vanished from the feed (OTAs like Airbnb drop the event instead of
@@ -1204,9 +1221,20 @@ async def _do_pms_sync(db: Session, notify: bool = True) -> int:
                 if row.uid not in seen_uids:
                     db.delete(row)
         db.commit()
-        if notify:
-            for res_data in new_for_notify:
-                _notify_caretakers(db, res_data)
+        # Notify caretakers for any reservation not yet emailed. The startup bulk
+        # load (notify=False) only seeds email_sent=True so we never blast the
+        # backlog; a booking first ingested during a restart window therefore
+        # still gets exactly one email on the next periodic sync.
+        pending = db.query(IcalReservation).filter(
+            IcalReservation.platform==platform,
+            IcalReservation.email_sent==False,
+            IcalReservation.checkout>=today.isoformat()).all()
+        for row in pending:
+            if notify:
+                _notify_caretakers(db, {'platform':row.platform,'guest_name':row.guest_name,
+                    'checkin':row.checkin,'checkout':row.checkout,'guests':None})
+            row.email_sent = True
+        db.commit()
     _dedup_ical_reservations(db)
     return total_new
 
